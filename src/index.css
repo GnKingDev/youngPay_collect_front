@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary:   #F59E0B;
+    --color-primary-d: #F97316;
+    --color-text:      #0F172A;
+    --color-bg:        #F8FAFC;
+    --color-surface:   #FFFFFF;
+    --color-border:    #E2E8F0;
+    --color-muted:     #64748B;
+    --gradient-orange: linear-gradient(135deg, #F59E0B, #F97316);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #F8FAFC;
+    color: #0F172A;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar       { width: 5px; }
+  ::-webkit-scrollbar-track { background: #F1F5F9; }
+  ::-webkit-scrollbar-thumb { background: #F59E0B; border-radius: 4px; }
+
+  ::selection {
+    background: rgba(245,158,11,0.2);
+    color: #0F172A;
+  }
+}
+
+@layer utilities {
+  /* ── Gradient text ── */
+  .text-gradient {
+    background: linear-gradient(135deg, #F59E0B, #F97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 font-semibold text-white px-6 py-3 rounded-xl transition-all duration-200;
+    background: linear-gradient(135deg, #F59E0B, #F97316);
+    box-shadow: 0 8px 24px rgba(249,115,22,0.30);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px rgba(249,115,22,0.40);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 font-semibold text-navy px-6 py-3 rounded-xl border-2 border-navy-200 bg-white transition-all duration-200 hover:border-primary hover:text-primary;
+  }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-white rounded-2xl shadow-card;
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover;
+  }
+
+  /* ── Sections ── */
+  .section-pad    { @apply py-20 px-6; }
+  .container-max  { @apply max-w-7xl mx-auto; }
+
+  /* ── Orange icon box ── */
+  .icon-box {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0;
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(249,115,22,0.1));
+    color: #F97316;
+  }
+
+  /* ── Frosted glass (sur fond sombre) ── */
+  .glass-dark {
+    background: rgba(15,23,42,0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* ── Badge pill ── */
+  .badge-orange {
+    @apply inline-flex items-center gap-2 text-sm font-medium rounded-full px-4 py-1.5;
+    background: rgba(245,158,11,0.12);
+    color: #F97316;
+    border: 1px solid rgba(249,115,22,0.25);
+  }
+}
+
+/* ── Animations ── */
+.animate-float         { animation: float 6s ease-in-out infinite; }
+.animate-float-delayed { animation: float 6s ease-in-out 3s infinite; }
+.animate-float-slow    { animation: float 9s ease-in-out 1.5s infinite; }
+
+@keyframes float {
+  0%,100% { transform: translateY(0px); }
+  50%      { transform: translateY(-14px); }
+}
+
+@keyframes pulseRing {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* ── Code syntax highlight ── */
+.tok-keyword { color: #F59E0B; }
+.tok-string  { color: #34D399; }
+.tok-comment { color: #475569; font-style: italic; }
+.tok-func    { color: #60A5FA; }
+.tok-num     { color: #F87171; }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <!-- Visa -->
+  <text x="2" y="28" font-family="Arial, sans-serif" font-size="22" font-weight="900" font-style="italic" fill="#1A1F71">VISA</text>
+  <!-- Separator -->
+  <line x1="60" y1="6" x2="60" y2="34" stroke="#E2E8F0" stroke-width="1.5"/>
+  <!-- Mastercard circles -->
+  <circle cx="78" cy="20" r="13" fill="#EB001B"/>
+  <circle cx="96" cy="20" r="13" fill="#F79E1B"/>
+  <!-- Overlap blend -->
+  <path d="M87 9.2A13 13 0 0 1 96 20a13 13 0 0 1-9 10.8A13 13 0 0 1 78 20a13 13 0 0 1 9-10.8z" fill="#FF5F00"/>
+</svg>

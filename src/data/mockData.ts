@@ -1,0 +1,228 @@
+export const paymentMethods = [
+  {
+    id: 'orange-money',
+    name: 'Orange Money',
+    description: 'Mobile money Orange Guinée',
+    color: '#FF6200',
+    bg: 'rgba(255,98,0,0.12)',
+    border: 'rgba(255,98,0,0.25)',
+    letter: 'OM',
+  },
+  {
+    id: 'mtn-momo',
+    name: 'MTN Mobile Money',
+    description: 'Mobile money MTN Guinée',
+    color: '#FFCD00',
+    bg: 'rgba(255,205,0,0.12)',
+    border: 'rgba(255,205,0,0.25)',
+    letter: 'MTN',
+  },
+  {
+    id: 'kulu',
+    name: 'KULU',
+    description: 'Paiement mobile KULU GN',
+    color: '#8B5CF6',
+    bg: 'rgba(139,92,246,0.12)',
+    border: 'rgba(139,92,246,0.25)',
+    letter: 'KU',
+  },
+  {
+    id: 'soutra-money',
+    name: 'Soutra Money',
+    description: 'Mobile money Soutra GN',
+    color: '#10B981',
+    bg: 'rgba(16,185,129,0.12)',
+    border: 'rgba(16,185,129,0.25)',
+    letter: 'SM',
+  },
+  {
+    id: 'paycard',
+    name: 'PayCard',
+    description: 'Carte de paiement locale',
+    color: '#F59E0B',
+    bg: 'rgba(245,158,11,0.12)',
+    border: 'rgba(245,158,11,0.25)',
+    letter: 'PC',
+  },
+  {
+    id: 'visa-mastercard',
+    name: 'Visa / Mastercard',
+    description: 'Cartes bancaires internationales',
+    color: '#1A56DB',
+    bg: 'rgba(26,86,219,0.12)',
+    border: 'rgba(26,86,219,0.25)',
+    letter: 'CB',
+  },
+]
+
+export const features = [
+  {
+    icon: 'Link2',
+    title: 'Liens de paiement',
+    description: 'Générez un lien de paiement en 30 secondes depuis le tableau de bord. Partagez par WhatsApp, SMS ou email. Aucun code requis.',
+    color: '#F59E0B',
+    bg: 'rgba(245,158,11,0.1)',
+  },
+  {
+    icon: 'LayoutDashboard',
+    title: 'Tableau de bord marchand',
+    description: 'Gérez vos encaissements, suivez vos transactions et téléchargez vos relevés en quelques clics. Interface simple, aucune formation nécessaire.',
+    color: '#10B981',
+    bg: 'rgba(16,185,129,0.1)',
+  },
+  {
+    icon: 'Banknote',
+    title: 'Reversement Rapide',
+    description: 'Vos fonds sont reversés directement sur votre compte bancaire ou mobile money en moins de 24h. Zéro délai, zéro blocage.',
+    color: '#818CF8',
+    bg: 'rgba(129,140,248,0.1)',
+  },
+  {
+    icon: 'Activity',
+    title: 'Temps Réel',
+    description: 'Notifications instantanées à chaque paiement. Suivez l\'état de vos encaissements en direct sur votre dashboard.',
+    color: '#38BDF8',
+    bg: 'rgba(56,189,248,0.1)',
+  },
+  {
+    icon: 'Headphones',
+    title: 'Support 24/7',
+    description: 'Une équipe dédiée disponible à toute heure. Chat, email et téléphone pour un support premium.',
+    color: '#FB923C',
+    bg: 'rgba(251,146,60,0.1)',
+  },
+  {
+    icon: 'Zap',
+    title: 'API pour développeurs',
+    description: 'Intégrez YoungPay Collect en quelques lignes de code. SDK JavaScript, Python, PHP. Documentation complète incluse.',
+    color: '#34D399',
+    bg: 'rgba(52,211,153,0.1)',
+  },
+]
+
+export const steps = [
+  {
+    number: '01',
+    title: 'Créez votre compte',
+    description: 'Inscription en 5 minutes. Renseignez vos informations marchandes et soumettez vos documents KYB.',
+    icon: 'UserPlus',
+    color: '#10B981',
+  },
+  {
+    number: '02',
+    title: 'Intégrez l\'API',
+    description: 'Copiez vos clés API depuis le dashboard. Suivez la documentation claire avec exemples de code.',
+    icon: 'Code2',
+    color: '#F59E0B',
+  },
+  {
+    number: '03',
+    title: 'Encaissez en Guinée',
+    description: 'Recevez vos paiements en temps réel en GNF. Retirez vos fonds directement sur votre compte bancaire ou mobile money.',
+    icon: 'Banknote',
+    color: '#818CF8',
+  },
+]
+
+export const pricingPlans = [
+  {
+    name: 'Starter',
+    price: 'Gratuit',
+    period: '',
+    description: 'Parfait pour démarrer et tester la plateforme.',
+    highlight: false,
+    badge: null,
+    features: [
+      'Jusqu\'à 500 transactions/mois',
+      '1,8% de frais par transaction',
+      'Orange Money, MTN, KULU, Soutra Money',
+      'Dashboard basique',
+      'Documentation complète',
+      'Support par email',
+    ],
+    cta: 'Commencer gratuitement',
+    ctaStyle: 'ghost',
+  },
+  {
+    name: 'Business',
+    price: '29 900 GNF',
+    period: '/mois',
+    description: 'Pour les entreprises en croissance avec plus de volume.',
+    highlight: true,
+    badge: 'Populaire',
+    features: [
+      'Transactions illimitées',
+      '1,4% de frais par transaction',
+      'Tous les moyens de paiement',
+      'Dashboard avancé + analytics',
+      'Webhooks & notifications',
+      'Support prioritaire 24/7',
+      'Rapports personnalisés',
+    ],
+    cta: 'Démarrer l\'essai gratuit',
+    ctaStyle: 'primary',
+  },
+  {
+    name: 'Enterprise',
+    price: 'Sur mesure',
+    period: '',
+    description: 'Pour les grandes entreprises avec des besoins spécifiques.',
+    highlight: false,
+    badge: null,
+    features: [
+      'Tarifs négociés au volume',
+      'SLA garanti 99.9%',
+      'Intégration personnalisée',
+      'Manager de compte dédié',
+      'Formation de l\'équipe',
+      'Contrat sur mesure',
+      'Audit de sécurité inclus',
+    ],
+    cta: 'Contacter notre équipe',
+    ctaStyle: 'ghost',
+  },
+]
+
+export const testimonials = [
+  {
+    name: 'Moussa Camara',
+    role: 'CEO',
+    company: 'Karamoko Digital — Conakry',
+    avatar: 'MC',
+    avatarColor: '#10B981',
+    quote: 'YoungPay Collect a transformé notre boutique en ligne. L\'intégration était simple, et nos clients adorent payer avec Orange Money sans friction. Les paiements arrivent instantanément.',
+    rating: 5,
+  },
+  {
+    name: 'Fatoumata Diallo',
+    role: 'Directrice E-commerce',
+    company: 'Conakry Mall',
+    avatar: 'FD',
+    avatarColor: '#F59E0B',
+    quote: 'Enfin une solution qui comprend le marché guinéen. Nous avons intégré Orange Money, MTN et Soutra Money en une seule journée. Notre taux de conversion a augmenté de 35%.',
+    rating: 5,
+  },
+  {
+    name: 'Ibrahim Bah',
+    role: 'Fondateur',
+    company: 'GN Tech Solutions — Conakry',
+    avatar: 'IB',
+    avatarColor: '#818CF8',
+    quote: 'La documentation API est claire et le support répond en moins d\'une heure. YoungPay Collect est la solution de paiement qu\'attendait le marché guinéen.',
+    rating: 5,
+  },
+]
+
+export const stats = [
+  { value: 500,  suffix: '+',    label: 'Marchands en Guinée', prefix: '' },
+  { value: 50,   suffix: 'M GNF', label: 'Traités par mois',   prefix: '+' },
+  { value: 8,    suffix: '',     label: 'Régions couvertes',   prefix: '' },
+  { value: 99.9, suffix: '%',    label: 'Disponibilité SLA',   prefix: '' },
+]
+
+export const navLinks = [
+  { label: 'Fonctionnalités', href: '#fonctionnalites' },
+  { label: 'Paiements', href: '#paiements' },
+  { label: 'Tarifs', href: '#tarifs' },
+  { label: 'Développeurs', href: '#developpeurs' },
+]
