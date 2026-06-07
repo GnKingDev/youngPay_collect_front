@@ -4,7 +4,7 @@ export function getToken(): string | null {
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
-  const res = await fetch('/v1' + path, {
+  const res = await fetch('/api/v1' + path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

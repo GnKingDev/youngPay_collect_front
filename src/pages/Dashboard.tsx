@@ -19,7 +19,7 @@ let _env: 'sandbox' | 'production' = 'sandbox'
 const apiFetch = async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
   const token = localStorage.getItem('yp_token')
   const sep   = path.includes('?') ? '&' : '?'
-  const url   = '/v1' + path + sep + 'env=' + _env
+  const url   = '/api/v1' + path + sep + 'env=' + _env
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -60,7 +60,7 @@ const NAV = [
 type PayMethod = { id: string; code: string; label: string; color: string; bg_color: string }
 // Chargé depuis /v1/payment-methods au montage du Dashboard
 let _payMethods: PayMethod[] = []
-fetch('/v1/payment-methods')
+fetch('/api/v1/payment-methods')
   .then(r => r.json())
   .then((d: { id: string; code: string; label: string; color: string; bg_color: string }[]) => {
     if (Array.isArray(d)) _payMethods = d.map(m => ({ ...m, id: m.code }))
@@ -75,7 +75,7 @@ const useMethods = () => {
   const [methods, setMethods] = useState<PayMethod[]>(_payMethods)
   useEffect(() => {
     if (_payMethods.length > 0) { setMethods(_payMethods); return }
-    fetch('/v1/payment-methods')
+    fetch('/api/v1/payment-methods')
       .then(r => r.json())
       .then((d: { id: string; code: string; label: string; color: string; bg_color: string }[]) => {
         if (Array.isArray(d)) {

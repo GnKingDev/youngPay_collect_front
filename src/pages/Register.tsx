@@ -390,7 +390,7 @@ export default function Register() {
     if (step === 1) {
       setLoading(true)
       try {
-        const res = await fetch('/v1/auth/register/send-otp', {
+        const res = await fetch('/api/v1/auth/register/send-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: form.email, name: form.company }),
@@ -420,7 +420,7 @@ export default function Register() {
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/v1/auth/register', {
+      const res = await fetch('/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -713,7 +713,7 @@ export default function Register() {
                     type="button"
                     onClick={async () => {
                       try {
-                        const res = await fetch('/v1/auth/register/send-otp', {
+                        const res = await fetch('/api/v1/auth/register/send-otp', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ email: form.email, name: form.company }),

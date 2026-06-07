@@ -207,7 +207,7 @@ const ScreenLogin = ({
     if (!validate()) return
     setLoading(true)
     try {
-      const res = await fetch('/v1/auth/login', {
+      const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -420,7 +420,7 @@ const ScreenOTP = ({ onNavigate, email }: { onNavigate: (s: Screen) => void; ema
     refs[0].current?.focus()
     startTimer()
     try {
-      await fetch('/v1/auth/otp/resend', {
+      await fetch('/api/v1/auth/otp/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -434,7 +434,7 @@ const ScreenOTP = ({ onNavigate, email }: { onNavigate: (s: Screen) => void; ema
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/v1/auth/otp/verify', {
+      const res = await fetch('/api/v1/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
