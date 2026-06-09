@@ -6,6 +6,7 @@ import AuthFlow from './pages/AuthFlow'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import DevPage from './pages/DevPage'
+import PayPage from './pages/PayPage'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/dashboard"   element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/docs"        element={<DevPage />} />
         <Route path="/developpeur" element={<ProtectedRoute><DevPage /></ProtectedRoute>} />
+        <Route path="/pay/:linkId" element={<PayPage />} />
       </Routes>
     </AuthProvider>
   )
