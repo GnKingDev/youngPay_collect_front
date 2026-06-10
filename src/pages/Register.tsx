@@ -424,13 +424,15 @@ export default function Register() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name:     form.company,
-          email:    form.email,
-          phone:    '+224 ' + form.phone,
-          password: form.password,
-          city:     'Conakry',
-          sector:   form.sector,
-          otp:      form.otp.join(''),
+          name:       form.company,
+          first_name: form.firstName,
+          last_name:  form.lastName,
+          email:      form.email,
+          phone:      '+224 ' + form.phone,
+          password:   form.password,
+          city:       'Conakry',
+          sector:     form.sector,
+          otp:        form.otp.join(''),
         }),
       })
       const data = await res.json()

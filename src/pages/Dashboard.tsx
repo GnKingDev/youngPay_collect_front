@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ArrowLeftRight, Link2, Wallet, BarChart3, Settings,
@@ -225,10 +225,6 @@ const ScreenDashboard = ({ setTab }: { setTab: (t: string) => void }) => {
         <button onClick={() => setTab('reversements')}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-navy font-semibold text-sm border-2 border-navy-200 bg-white hover:border-amber-400 transition-colors">
           <Wallet className="w-4 h-4" /> Demander un reversement
-        </button>
-        <button
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-navy font-semibold text-sm border-2 border-navy-200 bg-white hover:border-amber-400 transition-colors">
-          <Download className="w-4 h-4" /> Télécharger le relevé
         </button>
       </div>
 
@@ -624,13 +620,21 @@ const ScreenLinks = () => {
   const [copiedId,      setCopiedId]      = useState<string | null>(null)
   const [methods,       setMethods]       = useState<string[]>([])
   const [methodsOpen,   setMethodsOpen]   = useState(false)
-  const [generated,     setGenerated]     = useState(false)
-  const [generatedLink, setGeneratedLink] = useState('')
-  const [page,          setPage]          = useState(1)
-  const [customFields,  setCustomFields]  = useState<CField[]>([])
-  const [linksData,     setLinksData]     = useState<LinkItem[]>([])
-  const [selectedLink,  setSelectedLink]  = useState<LinkItem | null>(null)
-  const [editFields,    setEditFields]    = useState<CField[]>([])
+  const [generated,       setGenerated]       = useState(false)
+  const [generatedLink,   setGeneratedLink]   = useState('')
+  const [showConfirm,     setShowConfirm]     = useState(false)
+  const [showShareModal,  setShowShareModal]  = useState(false)
+  const [shareLink,       setShareLink]       = useState('')
+  const [page,            setPage]            = useState(1)
+  const [customFields,    setCustomFields]    = useState<CField[]>([])
+  const [linksData,       setLinksData]       = useState<LinkItem[]>([])
+  const [selectedLink,    setSelectedLink]    = useState<LinkItem | null>(null)
+  const [editFields,      setEditFields]      = useState<CField[]>([])
+
+  const getPayUrl = (linkId: string) =>
+    _env === 'production'
+      ? `https://youngpaycollect.com/pay/${linkId}`
+      : `https://sandbox.youngpaycollect.com/pay/${linkId}`
 
   useEffect(() => {
     apiFetch<{ data: Record<string, unknown>[] }>('/payment-links')
@@ -672,21 +676,20 @@ const ScreenLinks = () => {
     try {
       const created = await apiFetch<Record<string, unknown>>('/payment-links', {
         method: 'POST',
-        body: JSON.stringify({ title, amount: Number(amount), description: desc, methods }),
+        body: JSON.stringify({ title, amount: Number(amount.replace(/\s/g, '')), description: desc, methods }),
       })
-      const link = `pay.youngpaycollect.com/${(created.id as string)}`
+      const link = getPayUrl(created.id as string)
       setGeneratedLink(link)
       setGenerated(true)
+      setShowConfirm(false)
       setLinksData(prev => [{
-        id: created.id as string, title, amount: Number(amount),
+        id: created.id as string, title, amount: Number(amount.replace(/\s/g, '')),
         status: 'active', payments: 0,
         created: new Date().toLocaleDateString('fr-GN'),
         methods, customFields,
       }, ...prev])
     } catch {
-      const link = `pay.youngpaycollect.com/${title.toLowerCase().replace(/\s/g, '-')}-${Date.now().toString(36)}`
-      setGeneratedLink(link)
-      setGenerated(true)
+      setShowConfirm(false)
     }
   }
 
@@ -767,9 +770,21 @@ const ScreenLinks = () => {
 
                         <div className="flex flex-col gap-1.5">
                           <label className="text-xs font-semibold text-navy uppercase tracking-wide">Montant (GNF) *</label>
-                          <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="Ex: 250000"
-                            className="rounded-xl border-2 border-navy-200 px-4 py-2.5 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
-                            style={{ fontFamily: 'Poppins, sans-serif' }} />
+                          <div className="relative">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={amount}
+                              onChange={e => {
+                                const raw = e.target.value.replace(/\s/g, '').replace(/[^\d]/g, '')
+                                setAmount(raw ? Number(raw).toLocaleString('fr-FR').replace(/ /g, ' ') : '')
+                              }}
+                              placeholder="Ex : 250 000"
+                              className="w-full rounded-xl border-2 border-navy-200 px-4 py-2.5 pr-14 text-sm text-navy font-semibold outline-none focus:border-amber-400 transition-colors"
+                              style={{ fontFamily: 'Poppins, sans-serif' }}
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-navy-400">GNF</span>
+                          </div>
                         </div>
 
                         <div className="flex flex-col gap-1.5">
@@ -915,7 +930,7 @@ const ScreenLinks = () => {
                       style={{ fontFamily: 'Poppins, sans-serif' }}>
                       Annuler
                     </button>
-                    <button onClick={handleGenerate} disabled={!title || !amount}
+                    <button onClick={() => { if (!title || !amount) return; setShowConfirm(true) }} disabled={!title || !amount}
                       className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)', boxShadow: '0 4px 16px rgba(249,115,22,0.30)', fontFamily: 'Poppins, sans-serif' }}>
                       <Link2 className="w-4 h-4" /> Générer le lien
@@ -1238,7 +1253,8 @@ const ScreenLinks = () => {
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-amber-400 transition-colors">
                   {copiedId === selectedLink.id ? <><Check className="w-4 h-4 text-green-500" />Lien copié !</> : <><Copy className="w-4 h-4" />Copier le lien</>}
                 </button>
-                <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-amber-400 transition-colors">
+                <button onClick={() => { setShareLink(getPayUrl(selectedLink.id)); setShowShareModal(true) }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-amber-400 transition-colors">
                   <Share2 className="w-4 h-4" /> Partager
                 </button>
                 {selectedLink.status === 'active' && (
@@ -1251,6 +1267,102 @@ const ScreenLinks = () => {
           </div>
         </>
       )}
+
+      {/* ── Modal confirmation génération ── */}
+      {showConfirm && (
+        <>
+          <div className="fixed inset-0 z-[60]" style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowConfirm(false)} />
+          <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+              <div className="p-6">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+                  style={{ background: 'linear-gradient(135deg,#F59E0B22,#F9731611)' }}>
+                  <Link2 className="w-6 h-6" style={{ color: '#F97316' }} />
+                </div>
+                <h3 className="font-bold text-navy text-lg text-center mb-1">Confirmer la génération</h3>
+                <p className="text-navy-400 text-sm text-center mb-5">Vérifiez les détails avant de créer le lien</p>
+                <div className="bg-navy-50 rounded-xl p-4 space-y-2 mb-5">
+                  {[
+                    { label: 'Titre',   value: title },
+                    { label: 'Montant', value: amount + ' GNF' },
+                    { label: 'Méthodes', value: methods.length ? methods.map(m => allMethods.find(x => x.code === m)?.label ?? m).join(', ') : 'Toutes' },
+                    { label: 'Expiration', value: expiry === 'inf' ? 'Sans limite' : expiry },
+                    { label: 'Env', value: _env === 'production' ? '🟢 Production' : '🟡 Sandbox' },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex justify-between text-sm">
+                      <span className="text-navy-400 font-medium">{label}</span>
+                      <span className="text-navy font-semibold text-right max-w-[180px] truncate">{value}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowConfirm(false)}
+                    className="flex-1 py-3 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+                    Annuler
+                  </button>
+                  <button onClick={handleGenerate}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm"
+                    style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)', boxShadow: '0 4px 16px rgba(249,115,22,0.30)' }}>
+                    <Link2 className="w-4 h-4" /> Confirmer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Modal partage ── */}
+      {showShareModal && (
+        <>
+          <div className="fixed inset-0 z-[60]" style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowShareModal(false)} />
+          <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-navy-100">
+                <h3 className="font-bold text-navy">Partager le lien</h3>
+                <button onClick={() => setShowShareModal(false)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-navy-400 hover:bg-navy-100 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* URL du lien */}
+                <div className="bg-navy-50 rounded-xl p-3 flex items-center gap-3">
+                  <span className="text-xs text-navy-500 font-mono break-all flex-1">{shareLink}</span>
+                </div>
+                {/* Options */}
+                <div className="space-y-2">
+                  {/* Copier */}
+                  <button onClick={() => { navigator.clipboard.writeText(shareLink).catch(()=>{}); setShowShareModal(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
+                    <Copy className="w-4 h-4 text-navy-400" /> Copier le lien
+                  </button>
+                  {/* WhatsApp */}
+                  <a href={`https://wa.me/?text=${encodeURIComponent('Payez via YoungPay Collect :\n' + shareLink)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-sm font-semibold"
+                    style={{ borderColor: '#25D36620', background: '#25D36608', color: '#128C7E' }}>
+                    <span className="text-xl">📱</span> Partager via WhatsApp
+                  </a>
+                  {/* SMS */}
+                  <a href={`sms:?body=${encodeURIComponent('Payez via YoungPay Collect : ' + shareLink)}`}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
+                    <span className="text-xl">💬</span> Envoyer par SMS
+                  </a>
+                  {/* Email */}
+                  <a href={`mailto:?subject=Lien de paiement YoungPay&body=${encodeURIComponent('Voici votre lien de paiement :\n' + shareLink)}`}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
+                    <span className="text-xl">✉️</span> Envoyer par Email
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   )
 }
@@ -1258,18 +1370,22 @@ const ScreenLinks = () => {
 /* ═══════════════════════════════════════════════════════
    SCREEN: REVERSEMENTS
 ══════════════════════════════════════════════════════ */
+type BankAcc = { id: string; bank_name: string; rib: string; label?: string }
+
 const ScreenReversements = () => {
-  const [destType,          setDestType]          = useState<'mobile' | 'bank'>('mobile')
-  const [operator,          setOperator]          = useState('orange_money')
-  const [phone,             setPhone]             = useState('')
-  const [iban,              setIban]              = useState('')
-  const [revAmount,         setRevAmount]         = useState('')
-  const [loading,           setLoading]           = useState(false)
-  const [done,              setDone]              = useState(false)
-  const [reversementsData,  setReversementsData]  = useState<RevRow[]>([])
-  const [solde, setSolde] = useState<number | null>(null)
+  const [revAmount,        setRevAmount]        = useState('')
+  const [selectedBankId,   setSelectedBankId]   = useState('')
+  const [loading,          setLoading]          = useState(false)
+  const [done,             setDone]             = useState(false)
+  const [reversementsData, setReversementsData] = useState<RevRow[]>([])
+  const [solde,            setSolde]            = useState<number | null>(null)
+  const [bankAccounts,     setBankAccounts]     = useState<BankAcc[]>([])
+  const [showBankModal,    setShowBankModal]    = useState(false)
+  const [newBank,          setNewBank]          = useState({ bank_name: '', rib: '', label: '' })
+  const [savingBank,       setSavingBank]       = useState(false)
 
   useEffect(() => {
+    if (_env !== 'production') return
     apiFetch<{ data: Record<string, unknown>[] }>('/reversements')
       .then(r => {
         if (r.data?.length) setReversementsData(r.data.map(p => ({
@@ -1279,23 +1395,25 @@ const ScreenReversements = () => {
           status: p.status as string,
           ref:    p.id as string,
         })))
-      })
-      .catch(() => {})
+      }).catch(() => {})
     apiFetch<{ balance: number }>('/reversements/balance')
-      .then(r => setSolde(r.balance))
-      .catch(() => {})
+      .then(r => setSolde(r.balance)).catch(() => {})
+    apiFetch<BankAcc[]>('/bank-accounts')
+      .then(d => { if (Array.isArray(d)) setBankAccounts(d) }).catch(() => {})
   }, [])
 
   const handleSubmit = async () => {
-    if (!revAmount) return
+    if (!revAmount || !selectedBankId) return
+    const bank = bankAccounts.find(b => b.id === selectedBankId)
+    if (!bank) return
     setLoading(true)
     try {
-      const destination = destType === 'mobile'
-        ? `${operator} — ${phone}`
-        : `Banque — ${iban}`
       await apiFetch('/reversements', {
         method: 'POST',
-        body: JSON.stringify({ amount: Number(revAmount), destination }),
+        body: JSON.stringify({
+          amount: Number(revAmount.replace(/\s/g, '')),
+          destination: `${bank.bank_name} — ${bank.rib}`,
+        }),
       })
       setDone(true)
     } catch (err: unknown) {
@@ -1305,8 +1423,104 @@ const ScreenReversements = () => {
     }
   }
 
+  const handleAddBank = async () => {
+    if (!newBank.bank_name || !newBank.rib) return
+    setSavingBank(true)
+    try {
+      const created = await apiFetch<BankAcc>('/bank-accounts', {
+        method: 'POST',
+        body: JSON.stringify(newBank),
+      })
+      setBankAccounts(prev => [created, ...prev])
+      setNewBank({ bank_name: '', rib: '', label: '' })
+      setShowBankModal(false)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setSavingBank(false)
+    }
+  }
+
+  const handleDeleteBank = async (id: string) => {
+    try {
+      await apiFetch(`/bank-accounts/${id}`, { method: 'DELETE' })
+      setBankAccounts(prev => prev.filter(b => b.id !== id))
+      if (selectedBankId === id) setSelectedBankId('')
+    } catch { /* ignore */ }
+  }
+
+  /* Sandbox → message bloquant */
+  if (_env !== 'production') {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+          style={{ background: 'rgba(245,158,11,0.12)' }}>
+          <Wallet className="w-8 h-8" style={{ color: '#F59E0B' }} />
+        </div>
+        <h2 className="font-bold text-navy text-xl mb-2">Reversements indisponibles en Sandbox</h2>
+        <p className="text-navy-400 text-sm max-w-sm">
+          Les reversements sont uniquement disponibles en mode <strong>Production</strong>. Complétez votre KYC et passez en production pour accéder à cette fonctionnalité.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 space-y-5">
+
+      {/* ── Modal ajout RIB ── */}
+      {showBankModal && (
+        <>
+          <div className="fixed inset-0 z-50" style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)' }}
+            onClick={() => setShowBankModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-navy-100">
+                <h3 className="font-bold text-navy">Ajouter un compte bancaire</h3>
+                <button onClick={() => setShowBankModal(false)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-navy-400 hover:bg-navy-100 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-navy uppercase tracking-wide">Nom de la banque *</label>
+                  <input value={newBank.bank_name} onChange={e => setNewBank(b => ({ ...b, bank_name: e.target.value }))}
+                    placeholder="Ex : Ecobank Guinée"
+                    className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
+                    style={{ fontFamily: 'Poppins, sans-serif' }} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-navy uppercase tracking-wide">RIB / IBAN *</label>
+                  <input value={newBank.rib} onChange={e => setNewBank(b => ({ ...b, rib: e.target.value }))}
+                    placeholder="Ex : GN 4501 0022 3344 0000"
+                    className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
+                    style={{ fontFamily: 'Poppins, sans-serif' }} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-navy uppercase tracking-wide">Libellé <span className="normal-case font-normal text-navy-400">(optionnel)</span></label>
+                  <input value={newBank.label} onChange={e => setNewBank(b => ({ ...b, label: e.target.value }))}
+                    placeholder="Ex : Compte principal"
+                    className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
+                    style={{ fontFamily: 'Poppins, sans-serif' }} />
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={() => setShowBankModal(false)}
+                    className="flex-1 py-3 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+                    Annuler
+                  </button>
+                  <button onClick={handleAddBank} disabled={savingBank || !newBank.bank_name || !newBank.rib}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
+                    {savingBank ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : 'Enregistrer'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Solde card */}
       <div className="bg-white rounded-2xl p-6 border border-navy-100 flex flex-col sm:flex-row sm:items-center gap-4 justify-between"
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
@@ -1325,76 +1539,80 @@ const ScreenReversements = () => {
         {/* Request form */}
         <div className="bg-white rounded-2xl p-6 border border-navy-100"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-          <h3 className="font-bold text-navy text-base mb-5">Demander un reversement</h3>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-bold text-navy text-base">Demander un reversement</h3>
+            <button onClick={() => setShowBankModal(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border border-navy-200 text-navy hover:border-amber-400 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Ajouter un RIB
+            </button>
+          </div>
 
           {!done ? (
             <div className="space-y-4">
+              {/* Montant */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-navy uppercase tracking-wide">
-                  Montant à reverser (GNF)
-                </label>
-                <input value={revAmount} onChange={e => setRevAmount(e.target.value)} type="number"
-                  placeholder={`Max: ${solde !== null ? solde.toLocaleString('fr-GN') : '—'} GNF`}
-                  className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
-                  style={{ fontFamily: 'Poppins, sans-serif' }} />
-              </div>
-
-              {/* Destination type */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-navy uppercase tracking-wide">Destination</label>
-                <div className="flex gap-3">
-                  {[
-                    { v: 'mobile' as const, label: 'Mobile Money', icon: <Smartphone className="w-4 h-4" /> },
-                    { v: 'bank'   as const, label: 'Compte bancaire', icon: <Building2  className="w-4 h-4" /> },
-                  ].map(opt => (
-                    <button key={opt.v} onClick={() => setDestType(opt.v)}
-                      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 text-sm font-semibold transition-all ${
-                        destType === opt.v ? 'text-white border-transparent' : 'border-navy-200 text-navy'
-                      }`}
-                      style={destType === opt.v ? { background: 'linear-gradient(135deg, #F59E0B, #F97316)' } : {}}>
-                      {opt.icon} {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {destType === 'mobile' ? (
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-navy uppercase tracking-wide">Opérateur</label>
-                    <select value={operator} onChange={e => setOperator(e.target.value)}
-                      className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors bg-white"
-                      style={{ fontFamily: 'Poppins, sans-serif' }}>
-                      <option value="orange_money">Orange Money</option>
-                      <option value="mtn">MTN Mobile Money</option>
-                      <option value="soutra">Soutra Money</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-navy uppercase tracking-wide">Numéro</label>
-                    <div className="flex items-center border-2 border-navy-200 rounded-xl overflow-hidden focus-within:border-amber-400 transition-colors">
-                      <span className="px-3 py-3 text-sm text-navy-500 font-medium border-r border-navy-200 bg-navy-50">+224</span>
-                      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="620 000 000"
-                        className="flex-1 px-3 py-3 text-sm text-navy outline-none bg-white"
-                        style={{ fontFamily: 'Poppins, sans-serif' }} />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-navy uppercase tracking-wide">IBAN / RIB</label>
-                  <input value={iban} onChange={e => setIban(e.target.value)} placeholder="GN 4501 0022 3344 0000"
-                    className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
+                <label className="text-xs font-semibold text-navy uppercase tracking-wide">Montant à reverser (GNF)</label>
+                <div className="relative">
+                  <input
+                    type="text" inputMode="numeric"
+                    value={revAmount}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/\s/g, '').replace(/[^\d]/g, '')
+                      setRevAmount(raw ? Number(raw).toLocaleString('fr-FR').replace(/ /g, ' ') : '')
+                    }}
+                    placeholder={`Max : ${solde !== null ? solde.toLocaleString('fr-GN') : '—'} GNF`}
+                    className="w-full rounded-xl border-2 border-navy-200 px-4 py-3 pr-14 text-sm text-navy font-semibold outline-none focus:border-amber-400 transition-colors"
                     style={{ fontFamily: 'Poppins, sans-serif' }} />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-navy-400">GNF</span>
                 </div>
-              )}
+              </div>
 
-              <button onClick={handleSubmit} disabled={loading || !revAmount}
+              {/* Choix RIB */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-navy uppercase tracking-wide">Compte bancaire de destination</label>
+                {bankAccounts.length === 0 ? (
+                  <div className="rounded-xl border-2 border-dashed border-navy-200 p-4 text-center">
+                    <p className="text-navy-400 text-sm mb-2">Aucun compte bancaire enregistré</p>
+                    <button onClick={() => setShowBankModal(true)}
+                      className="text-xs font-semibold" style={{ color: '#F97316' }}>
+                      + Ajouter un RIB
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {bankAccounts.map(b => (
+                      <div key={b.id}
+                        onClick={() => setSelectedBankId(b.id)}
+                        className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all"
+                        style={{
+                          borderColor:   selectedBankId === b.id ? '#F97316' : '#E2E8F0',
+                          background:    selectedBankId === b.id ? 'rgba(249,115,22,0.04)' : '#FAFAFA',
+                        }}>
+                        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                          selectedBankId === b.id ? 'border-orange-400' : 'border-navy-300'
+                        }`}>
+                          {selectedBankId === b.id && <div className="w-2 h-2 rounded-full" style={{ background: '#F97316' }} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-navy text-sm">{b.label || b.bank_name}</p>
+                          <p className="text-navy-400 text-xs truncate">{b.bank_name} · {b.rib}</p>
+                        </div>
+                        <button onClick={e => { e.stopPropagation(); handleDeleteBank(b.id) }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-navy-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button onClick={handleSubmit} disabled={loading || !revAmount || !selectedBankId}
                 className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-60 transition-all"
                 style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)', boxShadow: '0 4px 16px rgba(249,115,22,0.30)' }}>
-                {loading ? (
-                  <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Traitement en cours…</>
-                ) : 'Soumettre la demande'}
+                {loading
+                  ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Traitement…</>
+                  : 'Soumettre la demande'}
               </button>
             </div>
           ) : (
@@ -1403,8 +1621,8 @@ const ScreenReversements = () => {
                 <Check className="w-7 h-7 text-green-500" strokeWidth={2.5} />
               </div>
               <h4 className="font-bold text-navy text-lg mb-1">Demande soumise !</h4>
-              <p className="text-navy-400 text-sm mb-4">Votre reversement de {Number(revAmount).toLocaleString('fr-GN')} GNF sera traité dans les 24h.</p>
-              <button onClick={() => { setDone(false); setRevAmount('') }}
+              <p className="text-navy-400 text-sm mb-4">Votre reversement de {revAmount} GNF sera traité dans les 24h.</p>
+              <button onClick={() => { setDone(false); setRevAmount(''); setSelectedBankId('') }}
                 className="text-sm font-semibold" style={{ color: '#F97316' }}>
                 Nouvelle demande
               </button>
@@ -1428,14 +1646,14 @@ const ScreenReversements = () => {
                 </tr>
               </thead>
               <tbody>
-                {reversementsData.map(r => (
+                {reversementsData.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-10 text-navy-400">Aucun reversement</td></tr>
+                ) : reversementsData.map(r => (
                   <tr key={r.ref} className="border-t border-navy-100 hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-4 py-3.5 text-navy-500 whitespace-nowrap">{r.date}</td>
                     <td className="px-4 py-3.5 font-bold text-navy whitespace-nowrap">{fmt(r.amount)}</td>
                     <td className="px-4 py-3.5 text-navy-600 max-w-[140px] truncate">{r.dest}</td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge s={r.status === 'done' ? 'success' : 'pending'} />
-                    </td>
+                    <td className="px-4 py-3.5"><StatusBadge s={r.status === 'done' ? 'success' : 'pending'} /></td>
                     <td className="px-4 py-3.5 font-mono text-navy-400">{r.ref}</td>
                   </tr>
                 ))}
@@ -2905,424 +3123,143 @@ const ScreenDeveloper = () => {
 /* ═══════════════════════════════════════════════════════
    SCREEN: SUPPORT (chat direct)
 ══════════════════════════════════════════════════════ */
-type ChatMsg = { id: number; from: 'me' | 'agent'; text: string; time: string; read?: boolean; isNew?: boolean }
-
-const INIT_MSGS: ChatMsg[] = [
-  { id: 1, from: 'agent', text: "Bonjour Moussa ! 👋 Je suis Sara, votre chargée de support YoungPay Collect. Comment puis-je vous aider aujourd'hui ?", time: '09:02', read: true },
-  { id: 2, from: 'me',    text: "Bonjour Sara, j'aimerais comprendre pourquoi ma transaction TXN-8819 est toujours en attente.", time: '09:04', read: true },
-  { id: 3, from: 'agent', text: "Je vérifie ça tout de suite. 🔍 Pouvez-vous me confirmer le numéro de téléphone associé à cette transaction ?", time: '09:05', read: true },
-  { id: 4, from: 'me',    text: '+224 628 900 441', time: '09:06', read: true },
-  { id: 5, from: 'agent', text: "Merci ! La transaction est en attente de confirmation Orange Money. Cela peut prendre jusqu'à 15 minutes. Je vous notifie dès confirmation. ✅", time: '09:08', read: true },
-  { id: 6, from: 'me',    text: "D'accord, merci beaucoup Sara !", time: '09:09', read: true },
-  { id: 7, from: 'agent', text: "Avec plaisir ! N'hésitez pas si vous avez d'autres questions. Bonne journée ! 😊", time: '09:10', read: true },
-]
-
-const SUPPORT_CONVS = [
-  { id: 1, subject: 'Transaction TXN-8819 en attente', agent: 'Sara Kouyaté',  initials: 'SK', color: 'linear-gradient(135deg,#6366F1,#818CF8)', last: "Avec plaisir ! N'hésitez…", time: '09:10', unread: 0, status: 'open'   },
-  { id: 2, subject: 'Intégration API — erreur 401',    agent: 'Ibrahima Sow',  initials: 'IS', color: 'linear-gradient(135deg,#10B981,#34D399)',  last: 'Votre clé secrète a expiré…', time: 'Hier',  unread: 1, status: 'open'   },
-  { id: 3, subject: 'Délai de reversement',            agent: 'Sara Kouyaté',  initials: 'SK', color: 'linear-gradient(135deg,#6366F1,#818CF8)', last: 'Votre demande a été traitée.', time: '26 Avr', unread: 0, status: 'closed' },
-]
-
-const AGENT_REPLIES = [
-  "Je comprends votre situation. Laissez-moi vérifier cela immédiatement.",
-  "Merci pour cette information. Votre demande est bien prise en compte. ✅",
-  "Je transmets votre message à l'équipe technique. Vous recevrez une réponse sous 24h.",
-  "Bien reçu ! Pouvez-vous me donner plus de détails pour que je puisse vous aider efficacement ?",
-  "Ce problème a été identifié. Nous travaillons sur un correctif. Merci de votre patience. 🙏",
-]
-
-const chatNow = () => {
-  const d = new Date()
-  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
-}
 
 const ScreenSupport = () => {
-  const [activeConv, setActiveConv]         = useState(1)
-  const [messages, setMessages]             = useState<ChatMsg[]>(INIT_MSGS)
-  const [input, setInput]                   = useState('')
-  const [typing, setTyping]                 = useState(false)
-  const [newTicket, setNewTicket]           = useState(false)
-  const [ticketSubject, setTicketSubject]   = useState('')
-  const [ticketMsg, setTicketMsg]           = useState('')
-  const [ticketSent, setTicketSent]         = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const CATEGORIES = [
+    'Problème de paiement',
+    'Reversement',
+    'Intégration API',
+    'Compte & KYC',
+    'Autre',
+  ]
 
-  const activeAgent = SUPPORT_CONVS.find(c => c.id === activeConv)!
+  const [subject,   setSubject]   = useState('')
+  const [category,  setCategory]  = useState('')
+  const [message,   setMessage]   = useState('')
+  const [priority,  setPriority]  = useState<'low' | 'medium' | 'high'>('medium')
+  const [loading,   setLoading]   = useState(false)
+  const [sent,      setSent]      = useState(false)
+  const [ticketRef, setTicketRef] = useState('')
 
-  const send = () => {
-    if (!input.trim()) return
-    const msg: ChatMsg = { id: Date.now(), from: 'me', text: input.trim(), time: chatNow(), read: false, isNew: true }
-    setMessages(prev => [...prev, msg])
-    setInput('')
-    setTyping(true)
-    const delay = 1800 + Math.random() * 1000
-    setTimeout(() => {
-      setTyping(false)
-      const reply: ChatMsg = {
-        id: Date.now() + 1,
-        from: 'agent',
-        text: AGENT_REPLIES[Math.floor(Math.random() * AGENT_REPLIES.length)],
-        time: chatNow(),
-        read: true,
-        isNew: true,
-      }
-      setMessages(prev => [...prev, reply])
-    }, delay)
+  const handleSubmit = async () => {
+    if (!subject.trim() || !message.trim() || !category) return
+    setLoading(true)
+    try {
+      const res = await apiFetch<{ id: string }>('/support/tickets', {
+        method: 'POST',
+        body: JSON.stringify({ subject, category, message, priority }),
+      })
+      setTicketRef(res.id ?? 'TKT-' + Date.now().toString(36).toUpperCase())
+      setSent(true)
+    } catch {
+      setTicketRef('TKT-' + Date.now().toString(36).toUpperCase())
+      setSent(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const sendTicket = () => {
-    if (!ticketSubject.trim()) return
-    setTicketSent(true)
-    setTimeout(() => { setTicketSent(false); setNewTicket(false); setTicketSubject(''); setTicketMsg('') }, 2000)
-  }
+  const reset = () => { setSubject(''); setCategory(''); setMessage(''); setPriority('medium'); setSent(false); setTicketRef('') }
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, typing])
+  if (sent) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+          style={{ background: 'linear-gradient(135deg,#10B981,#34D399)', boxShadow: '0 8px 24px rgba(16,185,129,0.3)' }}>
+          <Check className="w-8 h-8 text-white" strokeWidth={2.5} />
+        </div>
+        <h2 className="font-bold text-navy text-xl mb-2">Ticket soumis !</h2>
+        <p className="text-navy-400 text-sm mb-1">Référence : <span className="font-mono font-semibold text-navy">{ticketRef}</span></p>
+        <p className="text-navy-400 text-sm mb-6 max-w-xs">Notre équipe vous répondra par email dans les 24h ouvrées.</p>
+        <button onClick={reset}
+          className="px-6 py-2.5 rounded-xl text-sm font-semibold border-2 border-navy-200 text-navy hover:border-amber-400 transition-colors">
+          Nouveau ticket
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 65px)', fontFamily: 'Poppins, sans-serif' }}>
-
-      {/* ══ LEFT — Conversation sidebar ══ */}
-      <div className="w-[280px] flex-shrink-0 flex flex-col border-r border-navy-100"
-        style={{ background: '#FAFAFA' }}>
-
-        {/* Sidebar header */}
-        <div className="px-5 pt-5 pb-4 border-b border-navy-100">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-navy text-sm tracking-tight">Support</h3>
-            <button
-              onClick={() => { setNewTicket(v => !v); setTicketSent(false) }}
-              className="w-8 h-8 flex items-center justify-center rounded-xl text-white transition-transform hover:scale-105 active:scale-95 flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)', boxShadow: '0 4px 12px rgba(249,115,22,0.30)' }}>
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-          <p className="text-navy-400 text-xs">
-            <span className="font-semibold" style={{ color: '#F97316' }}>{SUPPORT_CONVS.filter(c => c.status === 'open').length}</span> tickets ouverts
-          </p>
-        </div>
-
-        {/* New ticket form */}
-        {newTicket && (
-          <div className="mx-3 my-3 rounded-2xl border border-amber-200 overflow-hidden"
-            style={{ background: 'linear-gradient(160deg, #FFFBF0, #FEF3C7)', boxShadow: '0 4px 16px rgba(249,115,22,0.08)' }}>
-            <div className="px-4 pt-4 pb-3 space-y-2.5">
-              <p className="text-[11px] font-bold text-navy uppercase tracking-wider">Nouveau ticket</p>
-              <input
-                value={ticketSubject}
-                onChange={e => setTicketSubject(e.target.value)}
-                placeholder="Sujet *"
-                className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-xs text-navy outline-none transition-all placeholder-navy-300"
-                style={{ fontFamily: 'Poppins, sans-serif' }}
-              />
-              <textarea
-                value={ticketMsg}
-                onChange={e => setTicketMsg(e.target.value)}
-                placeholder="Décrivez votre problème…"
-                rows={2}
-                className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-xs text-navy outline-none resize-none transition-all placeholder-navy-300"
-                style={{ fontFamily: 'Poppins, sans-serif' }}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setNewTicket(false)}
-                  className="flex-1 py-2 rounded-xl border border-navy-200 text-xs font-semibold text-navy-500 hover:bg-white transition-colors">
-                  Annuler
-                </button>
-                <button
-                  onClick={sendTicket}
-                  className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all"
-                  style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
-                  {ticketSent ? '✓ Envoyé !' : 'Envoyer'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Conversation list */}
-        <div className="flex-1 overflow-y-auto py-2">
-          {SUPPORT_CONVS.map(conv => {
-            const isActive = activeConv === conv.id
-            return (
-              <button
-                key={conv.id}
-                onClick={() => setActiveConv(conv.id)}
-                className="w-full text-left px-3 py-1 transition-all"
-              >
-                <div className={`relative px-3 py-3 rounded-2xl transition-all duration-200 ${
-                  isActive ? '' : 'hover:bg-white'
-                }`}
-                  style={isActive ? {
-                    background: 'white',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
-                    borderLeft: '3px solid #F97316',
-                  } : {}}>
-
-                  {/* Unread badge */}
-                  {conv.unread > 0 && (
-                    <span className="absolute top-3 right-3 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
-                      style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
-                      {conv.unread}
-                    </span>
-                  )}
-
-                  <div className="flex items-center gap-2.5 mb-1.5">
-                    {/* Agent mini-avatar */}
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-                      style={{ background: conv.color }}>
-                      {conv.initials}
-                    </div>
-                    <p className="text-[11px] font-semibold text-navy-500">{conv.agent}</p>
-                  </div>
-
-                  <p className={`text-xs font-semibold leading-snug mb-1 line-clamp-1 ${isActive ? 'text-navy' : 'text-navy-700'}`}>
-                    {conv.subject}
-                  </p>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-navy-400 text-[11px] truncate">{conv.last}</p>
-                    <span className="text-[10px] text-navy-300 flex-shrink-0">{conv.time}</span>
-                  </div>
-
-                  <div className="mt-1.5">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      conv.status === 'open'
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-navy-100 text-navy-400'
-                    }`}>
-                      {conv.status === 'open'
-                        ? <><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />Ouvert</>
-                        : <>✓ Résolu</>
-                      }
-                    </span>
-                  </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Bottom info */}
-        <div className="px-5 py-4 border-t border-navy-100">
-          <div className="flex items-center gap-2 text-[11px] text-navy-400">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
-            Support disponible · 8h–20h
-          </div>
-        </div>
+    <div className="p-6 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h2 className="font-bold text-navy text-xl mb-1">Contacter le support</h2>
+        <p className="text-navy-400 text-sm">Notre équipe répond sous 24h ouvrées.</p>
       </div>
 
-      {/* ══ RIGHT — Chat window ══ */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="bg-white rounded-2xl border border-navy-100 p-6 space-y-5"
+        style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
 
-        {/* Chat header */}
-        <div className="flex-shrink-0 px-6 py-3.5 bg-white border-b border-navy-100 flex items-center gap-4"
-          style={{ boxShadow: '0 1px 0 rgba(15,23,42,0.06)' }}>
-
-          {/* Agent avatar with online ring */}
-          <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-              style={{ background: activeAgent.color, boxShadow: '0 4px 12px rgba(99,102,241,0.30)' }}>
-              {activeAgent.initials}
-            </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-navy text-sm leading-tight">{activeAgent.agent}</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-green-600 text-xs font-medium">En ligne</span>
-              <span className="text-navy-300 text-xs">·</span>
-              <span className="text-navy-400 text-xs">Support YoungPay Collect</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-navy-100 text-navy-500"
-              style={{ background: '#F8FAFC' }}>
-              <FileText className="w-3 h-3" />
-              Ticket #2026-0{activeConv}
-            </span>
-            <button className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-xl border border-navy-200 text-navy-500 hover:bg-navy-50 transition-colors">
-              <ChevronDown className="w-3.5 h-3.5" />Options
-            </button>
-          </div>
-        </div>
-
-        {/* Messages area */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-3"
-          style={{
-            background: '#F8FAFC',
-            backgroundImage: 'radial-gradient(circle, #0F172A 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
-            backgroundRepeat: 'repeat',
-            opacity: 1,
-          }}>
-
-          {/* Overlay to tint the dots */}
-          <div className="relative" style={{ position: 'relative' }}>
-            <div style={{
-              position: 'absolute', inset: '-24px',
-              background: 'rgba(248,250,252,0.97)',
-              pointerEvents: 'none',
-              zIndex: 0,
-            }} />
-          </div>
-
-          {/* Date divider */}
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, #E2E8F0)' }} />
-            <span className="text-[11px] font-semibold text-navy-400 px-3 py-1 rounded-full bg-white border border-navy-100"
-              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              Aujourd'hui · 30 Avril 2026
-            </span>
-            <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, #E2E8F0)' }} />
-          </div>
-
-          {/* Messages */}
-          {messages.map((msg, idx) => {
-            const isMe = msg.from === 'me'
-            return (
-              <div
-                key={msg.id}
-                className={`flex items-end gap-2.5 relative z-10 ${isMe ? 'justify-end' : 'justify-start'}`}
-                style={{ animation: msg.isNew ? 'supportFadeUp 0.22s ease-out both' : undefined }}
-              >
-                {/* Agent avatar */}
-                {!isMe && (
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 mb-4"
-                    style={{ background: activeAgent.color }}>
-                    {activeAgent.initials}
-                  </div>
-                )}
-
-                <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[68%]`}>
-                  {/* Show agent name above first consecutive agent msg */}
-                  {!isMe && (idx === 0 || messages[idx - 1]?.from !== 'agent') && (
-                    <p className="text-[10px] font-semibold text-navy-400 mb-1 ml-1">{activeAgent.agent}</p>
-                  )}
-
-                  <div
-                    className="px-4 py-2.5 text-sm leading-relaxed transition-transform duration-150 hover:-translate-y-0.5 cursor-default"
-                    style={isMe ? {
-                      background: 'linear-gradient(135deg, #F59E0B, #F97316)',
-                      color: 'white',
-                      borderRadius: '20px 20px 4px 20px',
-                      boxShadow: '0 4px 12px rgba(249,115,22,0.28)',
-                    } : {
-                      background: '#FFFBF5',
-                      color: '#0F172A',
-                      border: '1px solid #FDE68A',
-                      borderRadius: '20px 20px 20px 4px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                    }}>
-                    {msg.text}
-                  </div>
-
-                  <div className={`flex items-center gap-1 mt-1 ${isMe ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-[10px] text-navy-300">{msg.time}</span>
-                    {isMe && (
-                      <span className="text-[10px]" style={{ color: msg.read ? '#F97316' : '#94A3B8' }}>
-                        {msg.read ? '✓✓' : '✓'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* My avatar */}
-                {isMe && (
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 mb-4"
-                    style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
-                    MC
-                  </div>
-                )}
-              </div>
-            )
-          })}
-
-          {/* Typing indicator */}
-          {typing && (
-            <div className="flex items-end gap-2.5 relative z-10"
-              style={{ animation: 'supportFadeUp 0.22s ease-out both' }}>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 mb-3"
-                style={{ background: activeAgent.color }}>
-                {activeAgent.initials}
-              </div>
-              <div className="px-4 py-3 flex items-center gap-1.5"
+        {/* Catégorie */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-navy uppercase tracking-wide">Catégorie *</label>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map(c => (
+              <button key={c} onClick={() => setCategory(c)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
                 style={{
-                  background: '#FFFBF5',
-                  border: '1px solid #FDE68A',
-                  borderRadius: '20px 20px 20px 4px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  borderColor: category === c ? '#F97316' : '#E2E8F0',
+                  background:  category === c ? 'rgba(249,115,22,0.08)' : '#FAFAFA',
+                  color:       category === c ? '#F97316' : '#64748B',
                 }}>
-                {[0, 1, 2].map(i => (
-                  <span
-                    key={i}
-                    className="w-2 h-2 rounded-full"
-                    style={{
-                      background: 'linear-gradient(135deg, #F59E0B, #F97316)',
-                      animation: `typingDot 1.2s ease-in-out ${i * 0.2}s infinite`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input bar */}
-        <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-navy-100">
-          <div className="flex items-end gap-2 rounded-2xl border border-navy-200 px-3 py-2.5 transition-all duration-200 focus-within:border-amber-400"
-            style={{ background: '#FAFAFA', boxShadow: '0 0 0 0 transparent', transition: 'border-color 0.2s, box-shadow 0.2s' }}>
-            <button className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-navy-400 hover:text-navy hover:bg-navy-100 transition-colors">
-              <Paperclip className="w-4 h-4" />
-            </button>
-
-            <textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-              placeholder="Écrivez votre message… (Entrée pour envoyer)"
-              rows={1}
-              className="flex-1 bg-transparent text-sm text-navy outline-none resize-none leading-relaxed py-1"
-              style={{ maxHeight: 120, fontFamily: 'Poppins, sans-serif' }}
-            />
-
-            <button className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-navy-400 hover:text-navy hover:bg-navy-100 transition-colors">
-              <SmilePlus className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={send}
-              disabled={!input.trim()}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-white transition-all duration-150 disabled:opacity-30 hover:scale-105 active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)', boxShadow: input.trim() ? '0 4px 12px rgba(249,115,22,0.35)' : 'none' }}>
-              <Send className="w-4 h-4" />
-            </button>
+                {c}
+              </button>
+            ))}
           </div>
-
-          <p className="text-[11px] text-navy-400 text-center mt-2.5">
-            Temps de réponse moyen :&nbsp;
-            <strong className="font-semibold" style={{ color: '#F97316' }}>&lt; 5 minutes</strong>
-            &nbsp;· Disponible <strong className="font-semibold text-navy-500">8h–20h</strong>
-          </p>
         </div>
-      </div>
 
-      <style>{`
-        @keyframes supportFadeUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes typingDot {
-          0%, 60%, 100% { transform: translateY(0);    opacity: 0.5; }
-          30%            { transform: translateY(-6px); opacity: 1;   }
-        }
-      `}</style>
+        {/* Priorité */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-navy uppercase tracking-wide">Priorité</label>
+          <div className="flex gap-2">
+            {([
+              { v: 'low'    as const, label: 'Faible',  color: '#10B981' },
+              { v: 'medium' as const, label: 'Normale', color: '#F59E0B' },
+              { v: 'high'   as const, label: 'Urgente', color: '#EF4444' },
+            ]).map(p => (
+              <button key={p.v} onClick={() => setPriority(p.v)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all"
+                style={{
+                  borderColor: priority === p.v ? p.color : '#E2E8F0',
+                  background:  priority === p.v ? p.color + '15' : '#FAFAFA',
+                  color:       priority === p.v ? p.color : '#94A3B8',
+                }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Sujet */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-navy uppercase tracking-wide">Sujet *</label>
+          <input value={subject} onChange={e => setSubject(e.target.value)}
+            placeholder="Résumez votre problème en une phrase"
+            className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
+            style={{ fontFamily: 'Poppins, sans-serif' }} />
+        </div>
+
+        {/* Message */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-navy uppercase tracking-wide">Message *</label>
+          <textarea value={message} onChange={e => setMessage(e.target.value)}
+            placeholder="Décrivez votre problème en détail. Incluez les IDs de transaction si applicable."
+            rows={5}
+            className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors resize-none"
+            style={{ fontFamily: 'Poppins, sans-serif' }} />
+        </div>
+
+        <button onClick={handleSubmit} disabled={loading || !subject.trim() || !message.trim() || !category}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 transition-all"
+          style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)', boxShadow: '0 4px 16px rgba(249,115,22,0.30)' }}>
+          {loading
+            ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Envoi en cours…</>
+            : <><Send className="w-4 h-4" />Envoyer le ticket</>}
+        </button>
+
+        <p className="text-center text-navy-400 text-xs">
+          Vous recevrez une confirmation par email · Réponse sous 24h ouvrées
+        </p>
+      </div>
     </div>
   )
 }
@@ -3346,17 +3283,33 @@ const Toggle = ({ active, onToggle }: { active: boolean; onToggle: () => void })
 )
 
 const KYCDoc = ({
-  title, subtitle, status, hint,
-}: { title: string; subtitle: string; status: 'valid' | 'pending' | 'missing'; hint?: string }) => {
+  title, subtitle, status, rejectionReason, uploading, onUpload,
+}: {
+  title: string; subtitle: string
+  status: 'approved' | 'submitted' | 'missing' | 'rejected'
+  rejectionReason?: string | null
+  uploading?: boolean
+  onUpload?: (f: File) => void
+}) => {
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
   const cfg = {
-    valid:   { border: '#BBF7D0', bg: 'rgba(240,253,244,0.6)', icon: <CheckCircle className="w-4 h-4" style={{ color: '#16A34A' }} />, label: 'Validé',      labelCls: 'bg-green-100 text-green-700' },
-    pending: { border: '#FDE68A', bg: 'rgba(255,251,235,0.6)', icon: <Clock       className="w-4 h-4" style={{ color: '#D97706' }} />, label: 'En attente',  labelCls: 'bg-amber-100 text-amber-700' },
-    missing: { border: '#E2E8F0', bg: 'rgba(248,250,252,0.6)', icon: <Upload      className="w-4 h-4" style={{ color: '#64748B' }} />, label: 'À soumettre', labelCls: 'bg-navy-100 text-navy-500'   },
+    approved: { border: '#BBF7D0', bg: 'rgba(240,253,244,0.6)', icon: <CheckCircle className="w-4 h-4" style={{ color: '#16A34A' }} />, label: 'Approuvé',    labelCls: 'bg-green-100 text-green-700' },
+    submitted:{ border: '#FDE68A', bg: 'rgba(255,251,235,0.6)', icon: <Clock       className="w-4 h-4" style={{ color: '#D97706' }} />, label: 'En attente',  labelCls: 'bg-amber-100 text-amber-700' },
+    missing:  { border: '#E2E8F0', bg: 'rgba(248,250,252,0.6)', icon: <Upload      className="w-4 h-4" style={{ color: '#64748B' }} />, label: 'À soumettre', labelCls: 'bg-navy-100 text-navy-500'   },
+    rejected: { border: '#FECACA', bg: 'rgba(254,242,242,0.6)', icon: <AlertCircle className="w-4 h-4" style={{ color: '#DC2626' }} />, label: 'Rejeté',      labelCls: 'bg-red-100 text-red-600'    },
   }[status]
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && onUpload) onUpload(file)
+    e.target.value = ''
+  }
+
+  const showUploadZone = status === 'missing' || status === 'rejected' || status === 'submitted'
+
   return (
-    <div
-      className="rounded-2xl border p-4 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 cursor-default"
+    <div className="rounded-2xl border p-4 flex flex-col gap-3 transition-all duration-200"
       style={{ borderColor: cfg.border, background: cfg.bg, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
@@ -3367,26 +3320,39 @@ const KYCDoc = ({
           {cfg.icon}{cfg.label}
         </span>
       </div>
-      {status === 'pending' && (
-        <button className="self-start text-xs font-semibold px-3 py-1.5 rounded-xl border-2 transition-colors"
-          style={{ borderColor: '#F59E0B', color: '#D97706' }}>
-          Remplacer le document
-        </button>
+      {status === 'rejected' && rejectionReason && (
+        <p className="text-red-600 text-xs bg-red-50 rounded-lg px-3 py-2">⚠ {rejectionReason}</p>
       )}
-      {status === 'missing' && (
-        <div className="rounded-xl border-2 border-dashed border-navy-200 p-4 text-center bg-white/60">
-          <Upload className="w-5 h-5 text-navy-300 mx-auto mb-1.5" />
-          <p className="text-navy text-xs font-medium">Glissez votre fichier ou cliquez pour parcourir</p>
-          <p className="text-navy-400 text-[10px] mt-0.5 mb-2.5">JPG, PNG ou PDF · Max 5 Mo</p>
-          <button className="text-xs font-bold text-white px-4 py-1.5 rounded-lg"
-            style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
-            Choisir un fichier
-          </button>
-        </div>
+      {showUploadZone && (
+        <>
+          <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden"
+            onChange={handleFileChange} />
+          <div className="rounded-xl border-2 border-dashed border-navy-200 p-4 text-center bg-white/60">
+            {uploading ? (
+              <div className="flex items-center justify-center gap-2 py-1">
+                <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs font-medium text-navy-500">Envoi en cours…</span>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-5 h-5 text-navy-300 mx-auto mb-1.5" />
+                <p className="text-navy text-xs font-medium">
+                  {status === 'submitted' ? 'Remplacer le document' : 'Cliquez pour choisir un fichier'}
+                </p>
+                <p className="text-navy-400 text-[10px] mt-0.5 mb-2.5">JPG, PNG ou PDF · Max 5 Mo</p>
+                <button type="button" onClick={() => inputRef.current?.click()}
+                  className="text-xs font-bold text-white px-4 py-1.5 rounded-lg"
+                  style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
+                  {status === 'submitted' ? 'Remplacer' : 'Choisir un fichier'}
+                </button>
+              </>
+            )}
+          </div>
+        </>
       )}
-      {hint && status === 'valid' && (
+      {status === 'approved' && (
         <p className="text-green-600 text-[11px] font-medium flex items-center gap-1">
-          <Check className="w-3 h-3" />{hint}
+          <Check className="w-3 h-3" /> Document vérifié par notre équipe
         </p>
       )}
     </div>
@@ -3396,16 +3362,41 @@ const KYCDoc = ({
 const ScreenAccount = () => {
   type Section = 'profile' | 'company' | 'kyc' | 'security' | 'notifs'
   const [activeSection, setActiveSection] = useState<Section>('profile')
-  const [saved,   setSaved]   = useState(false)
-  const [twoFA,   setTwoFA]   = useState(false)
-  const [showPwForm, setShowPwForm] = useState(false)
+  const [saved,        setSaved]        = useState(false)
+  const [twoFA,        setTwoFA]        = useState(false)
+  const [showPwForm,   setShowPwForm]   = useState(false)
+  const [confirmSave,  setConfirmSave]  = useState(false)
+  const [currentPw,    setCurrentPw]    = useState('')
+  const [newPw,        setNewPw]        = useState('')
+  const [confirmPw,    setConfirmPw]    = useState('')
+  const [pwError,      setPwError]      = useState('')
+  const [pwDone,       setPwDone]       = useState(false)
+  const [savingPw,     setSavingPw]     = useState(false)
+  const [confirmPwChg, setConfirmPwChg] = useState(false)
+
+  type DocStatus = 'missing' | 'submitted' | 'approved' | 'rejected'
+  type KycSummary = { status: DocStatus; rejection_reason?: string | null }
+  const [kycDocs,      setKycDocs]      = useState<{ id: KycSummary; rccm: KycSummary; logo: KycSummary }>({
+    id:   { status: 'missing' },
+    rccm: { status: 'missing' },
+    logo: { status: 'missing' },
+  })
+  const [kycApproved,  setKycApproved]  = useState(0)
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null)
+
   const [notifs, setNotifs]   = useState({
     payments: true, reversements: true, security: true, weekly: false, offers: false,
   })
+  const [notifSaving, setNotifSaving] = useState(false)
+  const [notifSaved,  setNotifSaved]  = useState(false)
   const merchant = JSON.parse(localStorage.getItem('yp_merchant') ?? '{}')
   const [profile, setProfile] = useState({
-    firstName: '', lastName: '', email: (merchant.email as string) ?? '',
-    phone: (merchant.phone as string) ?? '', city: (merchant.city as string) ?? 'Conakry', country: 'Guinée',
+    firstName: (merchant.first_name as string) ?? '',
+    lastName:  (merchant.last_name  as string) ?? '',
+    email:  (merchant.email as string) ?? '',
+    phone:  (merchant.phone as string) ?? '',
+    city:   (merchant.city  as string) ?? 'Conakry',
+    country: 'Guinée',
   })
   const [company, setCompany] = useState({
     name: (merchant.name as string) ?? '', sector: (merchant.sector as string) ?? '',
@@ -3416,20 +3407,95 @@ const ScreenAccount = () => {
     apiFetch<any>('/auth/me')
       .then(m => {
         setCompany(c => ({ ...c, name: m.name ?? c.name, sector: m.sector ?? c.sector, email: m.email ?? c.email }))
-        setProfile(p => ({ ...p, email: m.email ?? p.email, phone: m.phone ?? p.phone, city: m.city ?? p.city }))
+        setProfile(p => ({
+          ...p,
+          firstName: m.first_name ?? p.firstName,
+          lastName:  m.last_name  ?? p.lastName,
+          email:     m.email      ?? p.email,
+          phone:     m.phone      ?? p.phone,
+          city:      m.city       ?? p.city,
+        }))
+        if (m.notification_prefs) setNotifs(m.notification_prefs)
+      })
+      .catch(() => {})
+    apiFetch<any>('/kyc')
+      .then(d => {
+        if (d.documents) setKycDocs(d.documents)
+        if (typeof d.approved === 'number') setKycApproved(d.approved)
       })
       .catch(() => {})
   }, [])
 
-  const toggleNotif = (k: keyof typeof notifs) =>
-    setNotifs(p => ({ ...p, [k]: !p[k] }))
+  const handleChangePassword = async () => {
+    setPwError('')
+    if (!currentPw || !newPw || !confirmPw) { setPwError('Tous les champs sont requis'); return }
+    if (newPw.length < 8) { setPwError('Le nouveau mot de passe doit avoir au moins 8 caractères'); return }
+    if (newPw !== confirmPw) { setPwError('Les mots de passe ne correspondent pas'); return }
+    setConfirmPwChg(true)
+  }
+
+  const doChangePassword = async () => {
+    setConfirmPwChg(false)
+    setSavingPw(true)
+    try {
+      await apiFetch('/auth/password/change', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
+      })
+      setPwDone(true)
+      setCurrentPw(''); setNewPw(''); setConfirmPw('')
+      setTimeout(() => { setPwDone(false); setShowPwForm(false) }, 2500)
+    } catch (err: unknown) {
+      setPwError(err instanceof Error ? err.message : 'Erreur lors du changement')
+    } finally {
+      setSavingPw(false)
+    }
+  }
+
+  const handleKycUpload = async (type: string, file: File) => {
+    setUploadingDoc(type)
+    try {
+      const token = localStorage.getItem('yp_token')
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', type)
+      const res = await fetch(`/api/v1/kyc/upload?env=${_env}`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      })
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error) }
+      setKycDocs(prev => ({ ...prev, [type]: { status: 'submitted', rejection_reason: null } }))
+      setKycApproved(prev => Math.max(prev, 0))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de l\'envoi')
+    } finally {
+      setUploadingDoc(null)
+    }
+  }
+
+  const toggleNotif = async (k: keyof typeof notifs) => {
+    const updated = { ...notifs, [k]: !notifs[k] }
+    setNotifs(updated)
+    setNotifSaving(true)
+    try {
+      await apiFetch('/auth/notifications', {
+        method: 'PUT',
+        body: JSON.stringify(updated),
+      })
+      setNotifSaved(true)
+      setTimeout(() => setNotifSaved(false), 2000)
+    } catch { /* ignore */ } finally {
+      setNotifSaving(false)
+    }
+  }
 
   const save = async () => {
     setSaved(false)
     try {
       await apiFetch('/auth/profile', {
         method: 'PUT',
-        body: JSON.stringify({ name: company.name, phone: profile.phone, city: profile.city, sector: company.sector }),
+        body: JSON.stringify({ name: company.name, first_name: profile.firstName, last_name: profile.lastName, phone: profile.phone, city: profile.city, sector: company.sector }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2200)
@@ -3559,21 +3625,27 @@ const ScreenAccount = () => {
             <h3 className="font-bold text-navy text-base">Vérification KYC — Know Your Customer</h3>
             <p className="text-navy-400 text-xs mt-1 max-w-md">Obligatoire pour activer les reversements et dépasser les limites de transaction</p>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600 flex-shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            Non vérifié · 0/3 documents
-          </span>
+          {kycApproved === 3 ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">
+              <Check className="w-3.5 h-3.5" /> Vérifié · 3/3
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-red-100 text-red-600 flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              {kycApproved > 0 ? `Partiel · ${kycApproved}/3` : 'Non vérifié · 0/3'} documents
+            </span>
+          )}
         </div>
 
         {/* Progress */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-navy">Progression</span>
-            <span className="text-xs font-bold" style={{ color: '#F97316' }}>0 / 3</span>
+            <span className="text-xs font-bold" style={{ color: '#F97316' }}>{kycApproved} / 3</span>
           </div>
           <div className="h-3 rounded-full bg-navy-100 overflow-hidden">
             <div className="h-full rounded-full transition-all duration-700"
-              style={{ width: '0%', background: 'linear-gradient(90deg, #F59E0B, #F97316)', boxShadow: '0 0 12px rgba(249,115,22,0.45)' }} />
+              style={{ width: `${(kycApproved / 3) * 100}%`, background: 'linear-gradient(90deg, #F59E0B, #F97316)', boxShadow: '0 0 12px rgba(249,115,22,0.45)' }} />
           </div>
         </div>
 
@@ -3604,9 +3676,18 @@ const ScreenAccount = () => {
 
       {/* Documents */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <KYCDoc title="Pièce d'identité" subtitle="CNI ou Passeport en cours de validité" status="missing" />
-        <KYCDoc title="Registre de commerce (RCCM)" subtitle="Document officiel d'enregistrement de l'entreprise" status="missing" />
-        <KYCDoc title="Logo de l'entreprise" subtitle="Format PNG ou SVG, fond transparent recommandé" status="missing" />
+        <KYCDoc title="Pièce d'identité" subtitle="CNI ou Passeport en cours de validité"
+          status={kycDocs.id.status} rejectionReason={kycDocs.id.rejection_reason}
+          uploading={uploadingDoc === 'id'}
+          onUpload={f => handleKycUpload('id', f)} />
+        <KYCDoc title="Registre de commerce (RCCM)" subtitle="Document officiel d'enregistrement de l'entreprise"
+          status={kycDocs.rccm.status} rejectionReason={kycDocs.rccm.rejection_reason}
+          uploading={uploadingDoc === 'rccm'}
+          onUpload={f => handleKycUpload('rccm', f)} />
+        <KYCDoc title="Logo de l'entreprise" subtitle="Format PNG ou JPG, fond transparent recommandé"
+          status={kycDocs.logo.status} rejectionReason={kycDocs.logo.rejection_reason}
+          uploading={uploadingDoc === 'logo'}
+          onUpload={f => handleKycUpload('logo', f)} />
 
         {/* Code couleur — facultatif */}
         <div className="bg-white rounded-2xl border border-navy-100 p-4"
@@ -3670,16 +3751,35 @@ const ScreenAccount = () => {
           </div>
           {showPwForm && (
             <div className="space-y-3 pt-4 border-t border-navy-100" style={{ animation: 'sectionSlide 0.18s ease-out both' }}>
-              {['Mot de passe actuel', 'Nouveau mot de passe', 'Confirmer le nouveau'].map(lbl => (
-                <div key={lbl}>
-                  <label className={labelCls}>{lbl}</label>
-                  <input type="password" className={inputCls} style={{ fontFamily: 'Poppins, sans-serif' }} />
+              {pwDone ? (
+                <div className="flex items-center gap-2 text-green-600 text-sm font-semibold py-2">
+                  <Check className="w-4 h-4" /> Mot de passe modifié avec succès
                 </div>
-              ))}
-              <button className="mt-1 w-full py-3 rounded-xl text-sm font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
-                Valider le nouveau mot de passe
-              </button>
+              ) : (
+                <>
+                  <div>
+                    <label className={labelCls}>Mot de passe actuel</label>
+                    <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)}
+                      className={inputCls} style={{ fontFamily: 'Poppins, sans-serif' }} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Nouveau mot de passe</label>
+                    <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+                      className={inputCls} style={{ fontFamily: 'Poppins, sans-serif' }} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Confirmer le nouveau</label>
+                    <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+                      className={inputCls} style={{ fontFamily: 'Poppins, sans-serif' }} />
+                  </div>
+                  {pwError && <p className="text-red-500 text-xs">⚠ {pwError}</p>}
+                  <button onClick={handleChangePassword} disabled={savingPw}
+                    className="mt-1 w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
+                    {savingPw ? 'Traitement…' : 'Valider le nouveau mot de passe'}
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -3690,20 +3790,25 @@ const ScreenAccount = () => {
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
         <div className="flex items-center gap-3 px-6 py-4 border-b border-navy-100">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: twoFA ? 'rgba(16,185,129,0.12)' : 'rgba(15,23,42,0.06)' }}>
-            <Smartphone className="w-4 h-4" style={{ color: twoFA ? '#10B981' : '#64748B' }} />
+            style={{ background: 'rgba(16,185,129,0.12)' }}>
+            <ShieldCheck className="w-4 h-4" style={{ color: '#10B981' }} />
           </div>
           <h3 className="font-bold text-navy text-sm flex-1">Authentification à deux facteurs (2FA)</h3>
-          <div className="flex items-center gap-2.5">
-            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-all ${
-              twoFA ? 'bg-green-100 text-green-700' : 'bg-navy-100 text-navy-500'
-            }`}>{twoFA ? 'Activé' : 'Désactivé'}</span>
-            <Toggle active={twoFA} onToggle={() => setTwoFA(v => !v)} />
-          </div>
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+            Toujours activé
+          </span>
         </div>
         <div className="px-6 py-4">
-          <p className="text-navy-500 text-sm">Un code SMS sera envoyé au <strong className="text-navy">+224 622 441 200</strong> à chaque connexion.</p>
-          {twoFA && (
+          <p className="text-navy-500 text-sm">
+            Un code OTP à 6 chiffres est envoyé à{' '}
+            <strong className="text-navy">{profile.email}</strong>{' '}
+            à chaque connexion.
+          </p>
+          <div className="mt-3 flex items-center gap-2 text-green-600 text-xs font-semibold">
+            <CheckCircle className="w-4 h-4" />
+            Votre compte est protégé par OTP email
+          </div>
+          {false && (
             <div className="mt-3 flex items-center gap-2 text-green-600 text-xs font-semibold"
               style={{ animation: 'sectionSlide 0.18s ease-out both' }}>
               <CheckCircle className="w-4 h-4" />
@@ -3743,14 +3848,17 @@ const ScreenAccount = () => {
           ))}
         </div>
       </div>
-      <SaveBtn />
+      <div className="flex items-center gap-2 h-6">
+        {notifSaving && <span className="text-xs text-navy-400">Sauvegarde…</span>}
+        {notifSaved  && <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><Check className="w-3.5 h-3.5" />Sauvegardé</span>}
+      </div>
     </div>
   )
 
   const SaveBtn = () => (
     <div className="pt-2">
       <button
-        onClick={save}
+        onClick={() => setConfirmSave(true)}
         className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
         style={{
           background: saved ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #F59E0B, #F97316)',
@@ -3813,6 +3921,68 @@ const ScreenAccount = () => {
         </div>
       </div>
 
+      {/* ── Confirmation Enregistrer ── */}
+      {confirmSave && (
+        <>
+          <div className="fixed inset-0 z-50" style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)' }}
+            onClick={() => setConfirmSave(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+                  style={{ background: 'rgba(249,115,22,0.10)' }}>
+                  <Check className="w-6 h-6" style={{ color: '#F97316' }} />
+                </div>
+                <h3 className="font-bold text-navy text-lg mb-2">Confirmer les modifications</h3>
+                <p className="text-navy-400 text-sm mb-6">Voulez-vous enregistrer les modifications apportées à votre profil ?</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmSave(false)}
+                    className="flex-1 py-3 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+                    Annuler
+                  </button>
+                  <button onClick={() => { setConfirmSave(false); save() }}
+                    className="flex-1 py-3 rounded-xl text-white font-bold text-sm"
+                    style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
+                    Confirmer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Confirmation changement mot de passe ── */}
+      {confirmPwChg && (
+        <>
+          <div className="fixed inset-0 z-50" style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)' }}
+            onClick={() => setConfirmPwChg(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+                  style={{ background: 'rgba(239,68,68,0.10)' }}>
+                  <Lock className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="font-bold text-navy text-lg mb-2">Changer le mot de passe</h3>
+                <p className="text-navy-400 text-sm mb-6">Cette action est irréversible. Votre mot de passe sera immédiatement modifié.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmPwChg(false)}
+                    className="flex-1 py-3 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+                    Annuler
+                  </button>
+                  <button onClick={doChangePassword}
+                    className="flex-1 py-3 rounded-xl text-white font-bold text-sm"
+                    style={{ background: 'linear-gradient(135deg, #EF4444, #DC2626)' }}>
+                    Confirmer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <style>{`
         @keyframes sectionSlide {
           from { opacity: 0; transform: translateY(6px); }
@@ -3859,12 +4029,14 @@ export default function Dashboard() {
 
   useEffect(() => { _env = env }, [env])
 
-  const NOTIFS = [
-    { id: 1, icon: '✅', title: 'Paiement reçu',         desc: 'TXN-8821 · +250 000 GNF via Orange Money', time: 'Il y a 5 min',  read: false },
-    { id: 2, icon: '⏳', title: 'Transaction en attente', desc: 'TXN-8819 · En attente de confirmation',     time: 'Il y a 20 min', read: false },
-    { id: 3, icon: '💸', title: 'Reversement traité',     desc: 'REV-2231 · 450 000 GNF → Orange Money',    time: 'Il y a 1h',     read: true  },
-    { id: 4, icon: '🔑', title: 'Nouvelle clé API',       desc: 'Clé publique regénérée avec succès',        time: 'Hier',          read: true  },
-  ]
+  type Notif = { id: string | number; icon: string; title: string; desc: string; time: string; read: boolean }
+  const [NOTIFS, setNOTIFS] = useState<Notif[]>([])
+
+  useEffect(() => {
+    apiFetch<Notif[]>('/notifications')
+      .then(d => { if (Array.isArray(d)) setNOTIFS(d) })
+      .catch(() => {})
+  }, [env])
 
   const PAGE_TITLES: Record<string, string> = {
     dashboard:    'Tableau de bord',
@@ -3914,7 +4086,7 @@ export default function Dashboard() {
             const active = tab === item.id
             return (
               <button key={item.id}
-                onClick={() => item.id === 'developer' ? navigate('/developpeur') : switchTab(item.id)}
+                onClick={() => switchTab(item.id)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 relative text-left"
                 style={{
                   color: active ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
@@ -3984,24 +4156,41 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 ml-auto">
 
               {/* ENV switch */}
-              <div className="hidden sm:flex items-center gap-1.5 p-1 rounded-xl border border-navy-200 bg-navy-50">
-                <button
-                  onClick={() => setEnv('sandbox')}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
-                  style={env === 'sandbox'
-                    ? { background: 'linear-gradient(135deg,#F59E0B,#F97316)', color: 'white', boxShadow: '0 2px 8px rgba(249,115,22,0.30)' }
-                    : { color: '#94A3B8' }}>
-                  Sandbox
-                </button>
-                <button
-                  onClick={() => setEnv('production')}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
-                  style={env === 'production'
-                    ? { background: 'linear-gradient(135deg,#10B981,#059669)', color: 'white', boxShadow: '0 2px 8px rgba(16,185,129,0.30)' }
-                    : { color: '#94A3B8' }}>
-                  Production
-                </button>
-              </div>
+              {(() => {
+                const m = merchant as Record<string, unknown> | null
+                const productionEnabled = m?.production_enabled === true
+                return (
+                  <div className="hidden sm:flex items-center gap-1.5 p-1 rounded-xl border border-navy-200 bg-navy-50">
+                    {/* Sandbox — caché si déjà en production */}
+                    {env !== 'production' && (
+                      <button
+                        onClick={() => setEnv('sandbox')}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
+                        style={env === 'sandbox'
+                          ? { background: 'linear-gradient(135deg,#F59E0B,#F97316)', color: 'white', boxShadow: '0 2px 8px rgba(249,115,22,0.30)' }
+                          : { color: '#94A3B8' }}>
+                        Sandbox
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (env === 'production') return
+                        if (!productionEnabled) {
+                          switchTab('settings')
+                          return
+                        }
+                        setEnv('production')
+                      }}
+                      title={!productionEnabled ? 'Complétez votre KYC pour accéder à la production' : undefined}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
+                      style={env === 'production'
+                        ? { background: 'linear-gradient(135deg,#10B981,#059669)', color: 'white', boxShadow: '0 2px 8px rgba(16,185,129,0.30)' }
+                        : { color: !productionEnabled ? '#CBD5E1' : '#94A3B8', cursor: !productionEnabled ? 'not-allowed' : 'pointer' }}>
+                      {env === 'production' ? '✓ Production' : 'Production'}
+                    </button>
+                  </div>
+                )
+              })()}
 
               {/* Bell + dropdown */}
               <div className="relative">
@@ -4029,6 +4218,9 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <div className="divide-y divide-navy-50 max-h-72 overflow-y-auto">
+                        {NOTIFS.length === 0 && (
+                          <p className="text-center text-navy-400 text-xs py-8">Aucune notification</p>
+                        )}
                         {NOTIFS.map(n => (
                           <div key={n.id}
                             className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-navy-50 transition-colors ${!n.read ? 'bg-amber-50/40' : ''}`}>
@@ -4046,7 +4238,7 @@ export default function Dashboard() {
                       </div>
                       <div className="px-4 py-2.5 border-t border-navy-100">
                         <button
-                          onClick={() => setShowNotifs(false)}
+                          onClick={() => { setNOTIFS(n => n.map(x => ({ ...x, read: true }))); setShowNotifs(false) }}
                           className="w-full text-center text-xs font-semibold py-1.5 rounded-xl transition-colors hover:bg-navy-50"
                           style={{ color: '#F97316' }}>
                           Marquer tout comme lu
