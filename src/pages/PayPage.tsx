@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import logo            from '../assets/logo.png'
+import logo            from '../assets/logo.webp'
 import orangeMoneyLogo from '../assets/orange_money.png'
 import mtnLogo         from '../assets/MTN_MOBILE_MONEY.webp'
 import soutraLogo      from '../assets/soutra_money.png'

@@ -1,5 +1,5 @@
 import { Linkedin, Mail, Phone, MapPin, ArrowRight } from 'lucide-react'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 const XIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">

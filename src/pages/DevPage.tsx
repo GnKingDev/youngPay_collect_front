@@ -4,7 +4,7 @@ import {
   ArrowLeft, Key, Globe, Zap, Code2, Check, Copy,
   Terminal, ChevronRight, Lock, ArrowRight,
 } from 'lucide-react'
-import logoImg from '../assets/logo.png'
+import logoImg from '../assets/logo.webp'
 
 type ApiLang = 'node' | 'python' | 'php' | 'dart' | 'curl'
 

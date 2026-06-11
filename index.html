@@ -6,9 +6,18 @@
     <meta name="description" content="YoungPay Collect — Agrégateur de paiement pour l'Afrique. Acceptez Orange Money, MTN MoMo, Moov Money, cartes bancaires et plus encore via une seule API." />
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="theme-color" content="#F59E0B" />
+    <!-- Polices : preconnect + display=swap pour ne pas bloquer le rendu -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="preload" as="style"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    </noscript>
+    <!-- DNS prefetch pour l'API -->
+    <link rel="dns-prefetch" href="https://api.youngpaycollect.com" />
     <title>YoungPay Collect — Le Paiement Africain Simplifié</title>
   </head>
   <body>

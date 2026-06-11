@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Eye, EyeOff, Check, TrendingUp, X, Lock, ArrowRight, ShieldCheck } from 'lucide-react'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 /* ─── Mini Dashboard (left panel) ───────────────────── */
 const MiniDashboard = () => (

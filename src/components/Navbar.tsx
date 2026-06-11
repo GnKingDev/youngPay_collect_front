@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Menu, X, ArrowRight } from 'lucide-react'
 import { navLinks } from '../data/mockData'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 export default function Navbar() {
   const navigate = useNavigate()

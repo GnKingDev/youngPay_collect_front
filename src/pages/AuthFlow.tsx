@@ -4,7 +4,7 @@ import {
   Eye, EyeOff, Check, Lock, Mail, KeyRound, ShieldCheck,
   ArrowRight, ArrowLeft, TrendingUp, X, Shield,
 } from 'lucide-react'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 type Screen = 'login' | 'otp' | 'forgot' | 'reset'
 

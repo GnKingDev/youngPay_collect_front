@@ -4,7 +4,7 @@ import {
   ArrowRight, ArrowLeft, Eye, EyeOff, Check,
   TrendingUp, Building2, X,
 } from 'lucide-react'
-import logo from '../assets/logo.png'
+import logo from '../assets/logo.webp'
 
 /* ─── Types ─────────────────────────────────────────── */
 interface FormData {
