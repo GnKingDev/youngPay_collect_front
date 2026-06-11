@@ -633,6 +633,14 @@ type LinkItem = { id: string; title: string; amount: number; status: string; pay
 
 const ScreenLinks = () => {
   const allMethods = useMethods()
+
+  // Sélectionner toutes les méthodes dès qu'elles sont chargées
+  useEffect(() => {
+    if (allMethods.length > 0 && methods.length === 0) {
+      setMethods(allMethods.map(m => m.code))
+    }
+  }, [allMethods])
+
   const [showForm,      setShowForm]      = useState(false)
   const [title,         setTitle]         = useState('')
   const [amount,        setAmount]        = useState('')
@@ -652,10 +660,7 @@ const ScreenLinks = () => {
   const [selectedLink,    setSelectedLink]    = useState<LinkItem | null>(null)
   const [editFields,      setEditFields]      = useState<CField[]>([])
 
-  const getPayUrl = (linkId: string) =>
-    _env === 'production'
-      ? `https://youngpaycollect.com/pay/${linkId}`
-      : `https://sandbox.youngpaycollect.com/pay/${linkId}`
+  const getPayUrl = (linkId: string) => `https://youngpaycollect.com/pay/${linkId}`
 
   useEffect(() => {
     apiFetch<{ data: Record<string, unknown>[] }>('/payment-links')
@@ -1044,7 +1049,7 @@ const ScreenLinks = () => {
                       style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.22)', color: '#F97316' }}>
                       <Eye className="w-3.5 h-3.5" /> Détail
                     </button>
-                    <button onClick={() => handleCopy(link.id, `pay.youngpaycollect.com/${link.id}`)}
+                    <button onClick={() => handleCopy(link.id, getPayUrl(link.id))}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-navy-200 text-xs font-semibold text-navy hover:border-amber-400 transition-colors">
                       {copiedId === link.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedId === link.id ? 'Copié' : 'Copier'}
@@ -1145,7 +1150,7 @@ const ScreenLinks = () => {
                 {[
                   { label: 'Créé le',    value: selectedLink.created },
                   { label: 'Expiration', value: 'Illimité' },
-                  { label: 'Lien',       value: `pay.youngpaycollect.com/${selectedLink.id}` },
+                  { label: 'Lien',       value: getPayUrl(selectedLink.id) },
                 ].map((row, i) => (
                   <div key={i} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-navy-100' : ''}`}>
                     <span className="text-xs text-navy-400 font-medium">{row.label}</span>
@@ -1271,7 +1276,7 @@ const ScreenLinks = () => {
 
               {/* Actions */}
               <div className="flex flex-col gap-2">
-                <button onClick={() => handleCopy(selectedLink.id, `pay.youngpaycollect.com/${selectedLink.id}`)}
+                <button onClick={() => handleCopy(selectedLink.id, getPayUrl(selectedLink.id))}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-amber-400 transition-colors">
                   {copiedId === selectedLink.id ? <><Check className="w-4 h-4 text-green-500" />Lien copié !</> : <><Copy className="w-4 h-4" />Copier le lien</>}
                 </button>
@@ -2917,25 +2922,23 @@ const ScreenDeveloper = () => {
               <code className="flex-1 text-navy text-xs font-mono truncate">
                 {SK && showSecret ? SK : '•'.repeat(40)}
               </code>
-              {SK && (
-                <>
-                  <button onClick={() => setShowSecret(v => !v)}
-                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-navy-200 transition-colors text-navy-400">
-                    {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                  <button onClick={() => copy(SK, 'sk')}
-                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-                    style={copiedKey === 'sk'
-                      ? { background: 'rgba(16,185,129,0.12)', color: '#10B981' }
-                      : { background: 'rgba(245,158,11,0.12)', color: '#F97316' }}>
-                    {copiedKey === 'sk' ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Copier</>}
-                  </button>
-                </>
-              )}
+              <button onClick={() => SK ? setShowSecret(v => !v) : setShowRegenConfirm(true)}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-navy-200 transition-colors text-navy-400"
+                title={SK ? (showSecret ? 'Masquer' : 'Voir') : 'Regénérer pour voir'}>
+                {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              <button onClick={() => SK ? copy(SK, 'sk') : undefined}
+                disabled={!SK}
+                className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all disabled:opacity-40"
+                style={copiedKey === 'sk'
+                  ? { background: 'rgba(16,185,129,0.12)', color: '#10B981' }
+                  : { background: 'rgba(245,158,11,0.12)', color: '#F97316' }}>
+                {copiedKey === 'sk' ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Copier</>}
+              </button>
             </div>
             {!SK && (
               <p className="text-amber-600 text-[11px] mt-1.5">
-                ⚠ La clé n'est visible qu'une fois à la génération. Utilisez "Regénérer" pour en créer une nouvelle.
+                ⚠ Clé non disponible — cliquez sur "Regénérer" pour en créer une nouvelle.
               </p>
             )}
             <p className="text-red-500 text-[11px] mt-1">⚠ Ne partagez jamais votre api_key. Côté serveur uniquement.</p>
@@ -3061,7 +3064,7 @@ const ScreenDeveloper = () => {
 
             {/* Payload preview */}
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Payload reçu</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Payload reçu (POST vers votre URL)</p>
               <div className="rounded-xl overflow-hidden" style={{ background: '#0F172A' }}>
                 <pre className="text-[11px] font-mono leading-relaxed p-4" style={{ color: '#94A3B8' }}>{
 `{
@@ -3070,10 +3073,42 @@ const ScreenDeveloper = () => {
   "merchant_ref":   `}<span style={{ color: '#34D399' }}>"ORDER-2026-001"</span>{`,
   "status":         `}<span style={{ color: '#F97316' }}>"SUCCESS"</span>{`,
   "amount":         `}<span style={{ color: '#34D399' }}>150000</span>{`,
-  "date":           `}<span style={{ color: '#34D399' }}>"2026-05-03T10:24:00Z"</span>{`
+  "fee":            `}<span style={{ color: '#34D399' }}>1800</span>{`,
+  "net":            `}<span style={{ color: '#34D399' }}>148200</span>{`,
+  "operator":       `}<span style={{ color: '#34D399' }}>"orange_money"</span>{`,
+  "phone":          `}<span style={{ color: '#34D399' }}>"+224620000000"</span>{`,
+  "env":            `}<span style={{ color: '#34D399' }}>"sandbox"</span>{`,
+  "timestamp":      `}<span style={{ color: '#34D399' }}>"2026-06-11T10:24:00.000Z"</span>{`
 }`}
                 </pre>
               </div>
+            </div>
+
+            {/* Sandbox alternance */}
+            <div className="rounded-xl p-3.5" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1.5">⚡ Comportement sandbox</p>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                En sandbox, les webhooks alternent automatiquement entre <code className="font-mono font-bold">SUCCESS</code> et <code className="font-mono font-bold">FAILED</code> à chaque simulation — sans paramètre à passer. Cela vous permet de tester les deux cas de votre intégration.
+              </p>
+            </div>
+
+            {/* Retry policy */}
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Politique de retry</p>
+              <div className="space-y-1.5">
+                {[
+                  { attempt: '1ère tentative', delay: 'Immédiat',  color: '#10B981' },
+                  { attempt: '2ème tentative', delay: 'Après 1s',  color: '#F59E0B' },
+                  { attempt: '3ème tentative', delay: 'Après 2s',  color: '#EF4444' },
+                ].map(r => (
+                  <div key={r.attempt} className="flex items-center gap-3 text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: r.color }} />
+                    <span className="text-slate-600 font-medium w-32">{r.attempt}</span>
+                    <span className="text-slate-400">{r.delay} · timeout 10s</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-2">Votre endpoint doit répondre HTTP 2xx. Tout autre code = échec enregistré.</p>
             </div>
 
             {/* Statuses */}
@@ -4310,7 +4345,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]"
+    <div className="flex h-screen overflow-hidden"
       style={{ fontFamily: 'Poppins, sans-serif' }}>
 
       {/* Mobile overlay */}
@@ -4320,14 +4355,14 @@ export default function Dashboard() {
       )}
 
       {/* ── SIDEBAR ── */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 lg:translate-x-0 ${
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col transition-transform duration-300 lg:translate-x-0 lg:min-h-screen ${
         sidebar ? 'translate-x-0' : '-translate-x-full'
       }`}
-        style={{ background: '#0F172A', fontFamily: 'Poppins, sans-serif' }}>
+        style={{ background: '#FFFFFF', borderRight: '1px solid #F1F5F9', fontFamily: 'Poppins, sans-serif', boxShadow: '2px 0 12px rgba(0,0,0,0.04)', flexShrink: 0 }}>
 
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-white/8">
-          <div className="bg-white rounded-xl px-3 py-2 inline-flex">
+        <div className="px-5 py-5" style={{ borderBottom: '1px solid #F1F5F9' }}>
+          <div className="inline-flex rounded-xl px-3 py-2" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
             <img src={logo} alt="YoungPay Collect" className="h-8 w-auto" />
           </div>
         </div>
@@ -4339,13 +4374,19 @@ export default function Dashboard() {
             return (
               <button key={item.id}
                 onClick={() => switchTab(item.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 relative text-left"
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group"
                 style={{
-                  color: active ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
-                  backgroundColor: active ? 'rgba(255,255,255,0.10)' : 'transparent',
-                  borderLeft: active ? '3px solid #F97316' : '3px solid transparent',
-                }}>
-                <item.icon className="w-4.5 h-4.5 flex-shrink-0" style={{ width: 18, height: 18 }} />
+                  color:           active ? '#F97316' : '#64748B',
+                  backgroundColor: active ? 'rgba(249,115,22,0.07)' : 'transparent',
+                  borderLeft:      active ? '3px solid #F97316' : '3px solid transparent',
+                  fontWeight:      active ? 600 : 400,
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = '#F8FAFC' }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent' }}>
+                <item.icon
+                  className="flex-shrink-0"
+                  style={{ width: 18, height: 18, color: active ? '#F97316' : '#94A3B8' }}
+                />
                 {item.label}
               </button>
             )
@@ -4354,24 +4395,26 @@ export default function Dashboard() {
 
         {/* Env badge */}
         <div className="px-3 pb-2">
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
-            env === 'sandbox' ? 'bg-amber-400/15 text-amber-300' : 'bg-green-400/15 text-green-300'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${env === 'sandbox' ? 'bg-amber-400' : 'bg-green-400'}`} />
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
+            style={env === 'sandbox'
+              ? { background: '#FEF3C7', color: '#D97706' }
+              : { background: '#D1FAE5', color: '#059669' }}>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ background: env === 'sandbox' ? '#F59E0B' : '#10B981' }} />
             {env === 'sandbox' ? 'Mode Sandbox (mode essai)' : 'Mode Production'}
           </div>
         </div>
 
         {/* User + logout */}
-        <div className="px-3 py-4 border-t border-white/8 space-y-3">
-          <div className="flex items-center gap-3 px-3">
+        <div className="px-3 py-4 space-y-2" style={{ borderTop: '1px solid #F1F5F9' }}>
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: '#F8FAFC' }}>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-white text-xs font-semibold truncate">{merchant?.name ?? '—'}</p>
-              <p className="text-white/40 text-[10px] truncate">{merchant?.email ?? '—'}</p>
+              <p className="text-xs font-semibold truncate" style={{ color: '#0F172A' }}>{merchant?.name ?? '—'}</p>
+              <p className="text-[10px] truncate" style={{ color: '#94A3B8' }}>{merchant?.email ?? '—'}</p>
             </div>
           </div>
           <button onClick={() => {
@@ -4379,10 +4422,10 @@ export default function Dashboard() {
             localStorage.removeItem('yp_merchant')
             navigate('/connexion')
           }}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
-            style={{ color: 'rgba(255,255,255,0.4)' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+            style={{ color: '#94A3B8' }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#FEF2F2'; e.currentTarget.style.color = '#EF4444' }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94A3B8' }}>
             <LogOut className="w-4 h-4 flex-shrink-0" />
             Se déconnecter
           </button>
@@ -4390,7 +4433,7 @@ export default function Dashboard() {
       </aside>
 
       {/* ── MAIN ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8FAFC]">
 
         {/* Header */}
         <header className="bg-white border-b border-navy-100 sticky top-0 z-40"
