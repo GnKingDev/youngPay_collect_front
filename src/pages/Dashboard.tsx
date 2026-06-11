@@ -944,7 +944,7 @@ const ScreenLinks = () => {
                       <Check className="w-8 h-8 text-green-500" strokeWidth={2.5} />
                     </div>
                     <h3 className="font-bold text-navy text-lg mb-0.5">Lien généré avec succès !</h3>
-                    <p className="text-navy-400 text-sm">{title} — {Number(amount).toLocaleString('fr-GN')} GNF</p>
+                    <p className="text-navy-400 text-sm">{title} — {Number(amount.replace(/\s/g,'')).toLocaleString('fr-GN')} GNF</p>
                   </div>
                   <div className="flex items-center justify-between bg-navy-50 rounded-xl px-4 py-3 border border-navy-200 mb-4">
                     <span className="text-navy text-xs font-medium truncate">{generatedLink}</span>
@@ -1028,7 +1028,8 @@ const ScreenLinks = () => {
                       {copiedId === link.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedId === link.id ? 'Copié' : 'Copier'}
                     </button>
-                    <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-navy-200 text-xs font-semibold text-navy hover:border-amber-400 transition-colors">
+                    <button onClick={() => { setShareLink(getPayUrl(link.id)); setShowShareModal(true) }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-navy-200 text-xs font-semibold text-navy hover:border-amber-400 transition-colors">
                       <Share2 className="w-3.5 h-3.5" /> Partager
                     </button>
                     {link.status === 'active' && (
@@ -2142,18 +2143,35 @@ const ScreenDirectCollect = () => {
   const [phone,       setPhone]       = useState('')
   const [amount,      setAmount]      = useState('')
   const [motif,       setMotif]       = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
   const [modalStatus, setModalStatus] = useState<'pending'|'success'|'failed'|null>(null)
+  const [txId,        setTxId]        = useState('')
 
   const opInfo = DC_OPS.find(o => o.id === op) ?? DC_OPS[0]
+  const rawAmount = Number(amount.replace(/\s/g, ''))
 
-  const handleSend = () => {
-    if (!amount || phone.length < 8) return
+  const handleSend = async () => {
+    setShowConfirm(false)
     setModalStatus('pending')
-    setTimeout(() => setModalStatus(Math.random() > 0.25 ? 'success' : 'failed'), 3500)
+    try {
+      const res = await apiFetch<{ transaction_id: string; status: string }>('/direct-collect', {
+        method: 'POST',
+        body: JSON.stringify({ amount: rawAmount, phone, operator: op, description: motif }),
+      })
+      setTxId(res.transaction_id)
+      setTimeout(async () => {
+        try {
+          const s = await apiFetch<{ status: string }>(`/transactions/${res.transaction_id}`)
+          setModalStatus(s.status === 'SUCCESS' ? 'success' : s.status === 'FAILED' ? 'failed' : 'success')
+        } catch { setModalStatus('success') }
+      }, 4000)
+    } catch (err: unknown) {
+      setModalStatus('failed')
+    }
   }
 
   const closeModal  = () => setModalStatus(null)
-  const resetAll    = () => { setModalStatus(null); setPhone(''); setAmount(''); setMotif('') }
+  const resetAll    = () => { setModalStatus(null); setPhone(''); setAmount(''); setMotif(''); setTxId('') }
 
   return (
     <div className="p-6 flex flex-col items-center gap-6">
@@ -2208,9 +2226,18 @@ const ScreenDirectCollect = () => {
           {/* Montant */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-navy uppercase tracking-wide">Montant (GNF)</label>
-            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="Ex : 150 000"
-              className="rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
-              style={{ fontFamily: 'Poppins, sans-serif' }} />
+            <div className="relative">
+              <input
+                type="text" inputMode="numeric" value={amount}
+                onChange={e => {
+                  const raw = e.target.value.replace(/\s/g,'').replace(/[^\d]/g,'')
+                  setAmount(raw ? Number(raw).toLocaleString('fr-FR').replace(/ /g,' ') : '')
+                }}
+                placeholder="Ex : 150 000"
+                className="w-full rounded-xl border-2 border-navy-200 px-4 py-3 pr-14 text-sm text-navy font-semibold outline-none focus:border-amber-400 transition-colors"
+                style={{ fontFamily: 'Poppins, sans-serif' }} />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-navy-400">GNF</span>
+            </div>
           </div>
 
           {/* Motif */}
@@ -2223,13 +2250,58 @@ const ScreenDirectCollect = () => {
               style={{ fontFamily: 'Poppins, sans-serif' }} />
           </div>
 
-          <button onClick={handleSend} disabled={!amount || phone.length < 8}
+          <button onClick={() => { if (!amount || phone.length < 8) return; setShowConfirm(true) }}
+            disabled={!amount || phone.length < 8}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             style={{ background: 'linear-gradient(135deg,#F59E0B,#F97316)', boxShadow: '0 4px 16px rgba(249,115,22,0.30)' }}>
             <Zap className="w-4 h-4" /> Envoyer la demande
           </button>
         </div>
       </div>
+
+      {/* ── Dialog confirmation envoi ── */}
+      {showConfirm && (
+        <>
+          <div className="fixed inset-0 z-50" style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)' }}
+            onClick={() => setShowConfirm(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+                  style={{ background: 'linear-gradient(135deg,#F59E0B22,#F9731611)' }}>
+                  <Zap className="w-6 h-6" style={{ color: '#F97316' }} />
+                </div>
+                <h3 className="font-bold text-navy text-lg mb-1">Confirmer l'envoi</h3>
+                <p className="text-navy-400 text-sm mb-4">Vérifiez les informations avant d'envoyer</p>
+                <div className="bg-navy-50 rounded-xl p-4 space-y-2 mb-5 text-left">
+                  {[
+                    { label: 'Opérateur', value: opInfo.label },
+                    { label: 'Téléphone', value: '+224 ' + phone },
+                    { label: 'Montant',   value: amount + ' GNF' },
+                    ...(motif ? [{ label: 'Motif', value: motif }] : []),
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex justify-between text-sm">
+                      <span className="text-navy-400 font-medium">{label}</span>
+                      <span className="text-navy font-semibold">{value}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowConfirm(false)}
+                    className="flex-1 py-3 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+                    Annuler
+                  </button>
+                  <button onClick={handleSend}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm"
+                    style={{ background: 'linear-gradient(135deg,#F59E0B,#F97316)' }}>
+                    <Zap className="w-4 h-4" /> Confirmer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Modal de confirmation ── */}
       {modalStatus && (
@@ -2262,7 +2334,7 @@ const ScreenDirectCollect = () => {
               {/* Recap strip */}
               <div className="px-5 py-3 flex items-center gap-3 border-b border-navy-100" style={{ background: '#F8FAFC' }}>
                 <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ background: opInfo.bg, color: opInfo.color }}>{opInfo.label}</span>
-                <span className="text-sm font-bold text-navy">{Number(amount).toLocaleString('fr-GN')} GNF</span>
+                <span className="text-sm font-bold text-navy">{rawAmount.toLocaleString('fr-GN')} GNF</span>
                 <span className="text-xs text-navy-400 ml-auto">+224 {phone}</span>
               </div>
 
@@ -2309,7 +2381,7 @@ const ScreenDirectCollect = () => {
                     <div>
                       <p className="font-bold text-navy text-xl mb-1">Paiement validé !</p>
                       <p className="text-navy-400 text-sm">
-                        <span className="font-bold text-navy">{Number(amount).toLocaleString('fr-GN')} GNF</span> reçus de<br />
+                        <span className="font-bold text-navy">{rawAmount.toLocaleString('fr-GN')} GNF</span> reçus de<br />
                         +224 {phone}
                       </p>
                       {motif && (
@@ -2341,7 +2413,7 @@ const ScreenDirectCollect = () => {
                     <div>
                       <p className="font-bold text-navy text-xl mb-1">Paiement refusé</p>
                       <p className="text-navy-400 text-sm">Le client a refusé ou n'a pas répondu dans le délai imparti.</p>
-                      <p className="text-xs text-navy-300 mt-2">+224 {phone} · {Number(amount).toLocaleString('fr-GN')} GNF</p>
+                      <p className="text-xs text-navy-300 mt-2">+224 {phone} · {rawAmount.toLocaleString('fr-GN')} GNF</p>
                     </div>
                     <div className="flex gap-2 w-full mt-1">
                       <button onClick={() => { closeModal(); setTimeout(handleSend, 100) }}
@@ -2703,6 +2775,8 @@ const LANG_LABELS: { id: ApiLang; label: string; color: string }[] = [
 
 const ScreenDeveloper = () => {
   const [showSecret,   setShowSecret]   = useState(false)
+  const [revealedSK,   setRevealedSK]   = useState<string | null>(null)
+  const [regenLoading, setRegenLoading] = useState(false)
   const [copiedKey,    setCopiedKey]    = useState<string | null>(null)
   const [webhookUrl,   setWebhookUrl]   = useState('')
   const [webhookSaved, setWebhookSaved] = useState(false)
@@ -2719,9 +2793,27 @@ const ScreenDeveloper = () => {
       .catch(() => {})
   }, [])
 
-  const activeKey = apiKeys.find((k) => k.env === 'sandbox') ?? apiKeys[0]
-  const PK = (activeKey?.client_id as string) ?? 'ypk_sandbox_xxxxxxxxxxxxxxxx'
-  const SK = '••••••••••••••••••••••••••••••••••••••••'
+  const activeKey = apiKeys.find((k) => k.env === _env) ?? apiKeys[0]
+  const PK = (activeKey?.client_id as string) ?? '—'
+  const SK = revealedSK ?? null
+
+  const handleRevealSK = async () => {
+    if (revealedSK) { setShowSecret(v => !v); return }
+    setRegenLoading(true)
+    try {
+      const res = await apiFetch<{ client_id: string; api_key: string }>('/api-keys/regenerate', {
+        method: 'POST',
+        body: JSON.stringify({ env: _env }),
+      })
+      setRevealedSK(res.api_key)
+      setApiKeys(prev => prev.map(k => k.env === _env ? { ...k, client_id: res.client_id } : k))
+      setShowSecret(true)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setRegenLoading(false)
+    }
+  }
 
   const copy = (val: string, key: string) => {
     navigator.clipboard.writeText(val).catch(() => {})
@@ -2766,7 +2858,7 @@ const ScreenDeveloper = () => {
           {/* Public key */}
           <div>
             <label className="text-navy text-xs font-semibold uppercase tracking-wide block mb-2">
-              Clé publique
+              client_id
             </label>
             <div className="flex items-center gap-2 bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
               <code className="flex-1 text-navy text-xs font-mono truncate">{PK}</code>
@@ -2783,25 +2875,36 @@ const ScreenDeveloper = () => {
           {/* Secret key */}
           <div>
             <label className="text-navy text-xs font-semibold uppercase tracking-wide block mb-2">
-              Clé secrète
+              api_key
             </label>
             <div className="flex items-center gap-2 bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
               <code className="flex-1 text-navy text-xs font-mono truncate">
-                {showSecret ? SK : '•'.repeat(40)}
+                {SK && showSecret ? SK : '•'.repeat(40)}
               </code>
-              <button onClick={() => setShowSecret(v => !v)}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-navy-200 transition-colors text-navy-400">
-                {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <button onClick={handleRevealSK} disabled={regenLoading}
+                className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-navy-200 transition-colors text-navy-500">
+                {regenLoading
+                  ? <div className="w-3.5 h-3.5 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
+                  : SK
+                    ? (showSecret ? <><EyeOff className="w-3.5 h-3.5" />Masquer</> : <><Eye className="w-3.5 h-3.5" />Voir</>)
+                    : <><Eye className="w-3.5 h-3.5" />Regénérer & voir</>}
               </button>
-              <button onClick={() => copy(SK, 'sk')}
-                className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-                style={copiedKey === 'sk'
-                  ? { background: 'rgba(16,185,129,0.12)', color: '#10B981' }
-                  : { background: 'rgba(245,158,11,0.12)', color: '#F97316' }}>
-                {copiedKey === 'sk' ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Copier</>}
-              </button>
+              {SK && (
+                <button onClick={() => copy(SK, 'sk')}
+                  className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                  style={copiedKey === 'sk'
+                    ? { background: 'rgba(16,185,129,0.12)', color: '#10B981' }
+                    : { background: 'rgba(245,158,11,0.12)', color: '#F97316' }}>
+                  {copiedKey === 'sk' ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Copier</>}
+                </button>
+              )}
             </div>
-            <p className="text-red-500 text-[11px] mt-1.5 flex items-center gap-1">
+            {!SK && (
+              <p className="text-amber-600 text-[11px] mt-1.5">
+                ⚠ La clé secrète n'est affichée qu'une seule fois à la génération. Cliquez sur "Regénérer & voir" pour en créer une nouvelle.
+              </p>
+            )}
+            <p className="text-red-500 text-[11px] mt-1 flex items-center gap-1">
               ⚠ Ne partagez jamais votre clé secrète. Gardez-la côté serveur uniquement.
             </p>
           </div>
@@ -3125,6 +3228,8 @@ const ScreenDeveloper = () => {
 ══════════════════════════════════════════════════════ */
 
 const ScreenSupport = () => {
+  const merchantInfo = JSON.parse(localStorage.getItem('yp_merchant') ?? '{}')
+
   const CATEGORIES = [
     'Problème de paiement',
     'Reversement',
@@ -3184,6 +3289,38 @@ const ScreenSupport = () => {
       <div className="mb-6">
         <h2 className="font-bold text-navy text-xl mb-1">Contacter le support</h2>
         <p className="text-navy-400 text-sm">Notre équipe répond sous 24h ouvrées.</p>
+      </div>
+
+      {/* Infos de contact */}
+      <div className="bg-white rounded-2xl border border-navy-100 p-5 mb-5 flex flex-wrap gap-5"
+        style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.10)' }}>
+            <span className="text-base">✉️</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Votre email</p>
+            <p className="text-sm font-semibold text-navy">{merchantInfo.email || '—'}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.10)' }}>
+            <span className="text-base">📞</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Votre téléphone</p>
+            <p className="text-sm font-semibold text-navy">{merchantInfo.phone || '—'}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.10)' }}>
+            <span className="text-base">💬</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Support email</p>
+            <p className="text-sm font-semibold text-navy">support@youngpaycollect.com</p>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-navy-100 p-6 space-y-5"
@@ -3365,6 +3502,8 @@ const ScreenAccount = () => {
   const [saved,        setSaved]        = useState(false)
   const [twoFA,        setTwoFA]        = useState(false)
   const [showPwForm,   setShowPwForm]   = useState(false)
+  const [phoneOtp,     setPhoneOtp]     = useState(false)
+  const [phoneOtpSaving, setPhoneOtpSaving] = useState(false)
   const [confirmSave,  setConfirmSave]  = useState(false)
   const [currentPw,    setCurrentPw]    = useState('')
   const [newPw,        setNewPw]        = useState('')
@@ -3808,15 +3947,42 @@ const ScreenAccount = () => {
             <CheckCircle className="w-4 h-4" />
             Votre compte est protégé par OTP email
           </div>
-          {false && (
-            <div className="mt-3 flex items-center gap-2 text-green-600 text-xs font-semibold"
-              style={{ animation: 'sectionSlide 0.18s ease-out both' }}>
-              <CheckCircle className="w-4 h-4" />
-              Votre compte est mieux protégé
-            </div>
+        </div>
+      </div>
+
+      {/* OTP téléphone */}
+      <div className="bg-white rounded-2xl border border-navy-100 overflow-hidden"
+        style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-navy-100">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{ background: phoneOtp ? 'rgba(99,102,241,0.12)' : 'rgba(15,23,42,0.06)' }}>
+            <Smartphone className="w-4 h-4" style={{ color: phoneOtp ? '#6366F1' : '#64748B' }} />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-navy text-sm">OTP par téléphone (SMS)</h3>
+            <p className="text-navy-400 text-xs mt-0.5">Recevoir le code OTP par SMS en plus de l'email</p>
+          </div>
+          <Toggle active={phoneOtp} onToggle={async () => {
+            const next = !phoneOtp
+            setPhoneOtp(next)
+            setPhoneOtpSaving(true)
+            try {
+              await apiFetch('/auth/profile', { method: 'PUT', body: JSON.stringify({ phone_otp_enabled: next }) })
+            } catch { /* ignore */ } finally { setPhoneOtpSaving(false) }
+          }} />
+        </div>
+        <div className="px-6 py-4">
+          {phoneOtp ? (
+            <p className="text-navy-500 text-sm">
+              Un SMS sera envoyé au <strong className="text-navy">{profile.phone || '—'}</strong> à chaque connexion.
+              {phoneOtpSaving && <span className="ml-2 text-xs text-navy-400">Sauvegarde…</span>}
+            </p>
+          ) : (
+            <p className="text-navy-400 text-sm">Activez cette option pour recevoir également votre code OTP par SMS.</p>
           )}
         </div>
       </div>
+
       <SaveBtn />
     </div>
   )
@@ -4172,22 +4338,28 @@ export default function Dashboard() {
                         Sandbox
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        if (env === 'production') return
-                        if (!productionEnabled) {
-                          switchTab('settings')
-                          return
-                        }
-                        setEnv('production')
-                      }}
-                      title={!productionEnabled ? 'Complétez votre KYC pour accéder à la production' : undefined}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
-                      style={env === 'production'
-                        ? { background: 'linear-gradient(135deg,#10B981,#059669)', color: 'white', boxShadow: '0 2px 8px rgba(16,185,129,0.30)' }
-                        : { color: !productionEnabled ? '#CBD5E1' : '#94A3B8', cursor: !productionEnabled ? 'not-allowed' : 'pointer' }}>
-                      {env === 'production' ? '✓ Production' : 'Production'}
-                    </button>
+                    <div className="relative group">
+                      <button
+                        onClick={() => {
+                          if (env === 'production') return
+                          if (!productionEnabled) { switchTab('settings'); return }
+                          setEnv('production')
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
+                        style={env === 'production'
+                          ? { background: 'linear-gradient(135deg,#10B981,#059669)', color: 'white', boxShadow: '0 2px 8px rgba(16,185,129,0.30)' }
+                          : { color: !productionEnabled ? '#CBD5E1' : '#94A3B8', cursor: !productionEnabled ? 'not-allowed' : 'pointer' }}>
+                        {env === 'production' ? '✓ Production' : 'Production'}
+                      </button>
+                      {!productionEnabled && env !== 'production' && (
+                        <div className="absolute bottom-full right-0 mb-2 w-64 bg-navy text-white text-xs rounded-xl p-3 shadow-xl z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          style={{ fontFamily: 'Poppins, sans-serif' }}>
+                          <p className="font-semibold mb-1">⚠ Accès production requis</p>
+                          <p className="text-white/70 leading-snug">Soumettez votre <strong className="text-white">pièce d'identité</strong> et votre <strong className="text-white">RCCM</strong> dans <em>Mon compte → KYC</em> pour activer le mode production.</p>
+                          <div className="absolute bottom-0 right-4 translate-y-1/2 w-2 h-2 bg-navy rotate-45" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               })()}
