@@ -9,9 +9,30 @@ import {
   Package, ShoppingBag, Receipt, Tag, Trash2, Edit3, Send, ClipboardList,
   CheckSquare, Clock, AlertCircle,
   Headphones, MessageCircle, Paperclip, SmilePlus, ChevronDown,
-  UserCircle, ShieldCheck, Zap, Upload, Lock, Megaphone, Camera,
+  UserCircle, ShieldCheck, Zap, Upload, Lock, Megaphone, Camera, RefreshCw,
 } from 'lucide-react'
 import logo from '../assets/logo.png'
+
+/* ─── Error Dialog ───────────────────────────────────── */
+const ErrorDialog = ({ message, onClose }: { message: string; onClose: () => void }) => (
+  <>
+    <div className="fixed inset-0 z-[70]" style={{ background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(3px)' }}
+      onClick={onClose} />
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center" style={{ animation: 'fadeUp 0.2s ease-out', fontFamily: 'Poppins, sans-serif' }}>
+        <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl">⚠</span>
+        </div>
+        <p className="font-bold text-navy mb-2">Erreur</p>
+        <p className="text-navy-400 text-sm mb-5 leading-relaxed">{message}</p>
+        <button onClick={onClose}
+          className="w-full py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+          Fermer
+        </button>
+      </div>
+    </div>
+  </>
+)
 
 /* ─── API ─────────────────────────────────────────────── */
 let _env: 'sandbox' | 'production' = 'sandbox'
@@ -1381,6 +1402,7 @@ const ScreenReversements = () => {
   const [reversementsData, setReversementsData] = useState<RevRow[]>([])
   const [solde,            setSolde]            = useState<number | null>(null)
   const [bankAccounts,     setBankAccounts]     = useState<BankAcc[]>([])
+  const [revError,         setRevError]         = useState<string | null>(null)
   const [showBankModal,    setShowBankModal]    = useState(false)
   const [newBank,          setNewBank]          = useState({ bank_name: '', rib: '', label: '' })
   const [savingBank,       setSavingBank]       = useState(false)
@@ -1418,7 +1440,7 @@ const ScreenReversements = () => {
       })
       setDone(true)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de la demande')
+      setRevError(err instanceof Error ? err.message : 'Erreur lors de la demande')
     } finally {
       setLoading(false)
     }
@@ -1436,7 +1458,7 @@ const ScreenReversements = () => {
       setNewBank({ bank_name: '', rib: '', label: '' })
       setShowBankModal(false)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erreur')
+      setRevError(err instanceof Error ? err.message : "Erreur")
     } finally {
       setSavingBank(false)
     }
@@ -1663,6 +1685,7 @@ const ScreenReversements = () => {
           </div>
         </div>
       </div>
+      {revError && <ErrorDialog message={revError} onClose={() => setRevError(null)} />}
     </div>
   )
 }
@@ -1674,6 +1697,7 @@ const ScreenCatalog = () => {
   const [subTab, setSubTab]           = useState<'products' | 'invoices'>('products')
   const [products, setProducts]       = useState<ProductRow[]>([])
   const [invoices, setInvoices]       = useState<InvoiceRow[]>([])
+  const [catError, setCatError]       = useState<string | null>(null)
   const [showProductForm, setShowProductForm] = useState(false)
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
   const [copiedInv, setCopiedInv]     = useState<string | null>(null)
@@ -1735,7 +1759,7 @@ const ScreenCatalog = () => {
       setSavedProduct(true)
       setTimeout(() => { setSavedProduct(false); setShowProductForm(false) }, 1200)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erreur')
+      setCatError(err instanceof Error ? err.message : "Erreur")
     }
   }
 
@@ -1749,7 +1773,7 @@ const ScreenCatalog = () => {
           const p = products.find(x => x.id === i.productId)
           return { name: p?.name ?? i.productId, qty: i.qty, price: p?.price ?? 0 }
         })
-      if (items.length === 0) { alert('Ajoutez au moins un article'); return }
+      if (items.length === 0) { setCatError("Ajoutez au moins un article"); return }
       const created = await apiFetch<any>('/invoices', {
         method: 'POST',
         body: JSON.stringify({ client_name: newInvoice.client, client_phone: newInvoice.phone, due_date: newInvoice.due || undefined, items }),
@@ -1764,7 +1788,7 @@ const ScreenCatalog = () => {
       setSavedInvoice(true)
       setTimeout(() => { setSavedInvoice(false); setShowInvoiceForm(false) }, 1500)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erreur')
+      setCatError(err instanceof Error ? err.message : "Erreur")
     }
   }
 
@@ -2125,6 +2149,7 @@ const ScreenCatalog = () => {
           </div>
         </div>
       )}
+      {catError && <ErrorDialog message={catError} onClose={() => setCatError(null)} />}
     </div>
   )
 }
@@ -2774,10 +2799,12 @@ const LANG_LABELS: { id: ApiLang; label: string; color: string }[] = [
 ]
 
 const ScreenDeveloper = () => {
-  const [showSecret,   setShowSecret]   = useState(false)
-  const [revealedSK,   setRevealedSK]   = useState<string | null>(null)
-  const [regenLoading, setRegenLoading] = useState(false)
-  const [copiedKey,    setCopiedKey]    = useState<string | null>(null)
+  const [showSecret,    setShowSecret]    = useState(false)
+  const [revealedSK,    setRevealedSK]    = useState<string | null>(null)
+  const [regenLoading,  setRegenLoading]  = useState(false)
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
+  const [copiedKey,     setCopiedKey]     = useState<string | null>(null)
+  const [devError,      setDevError]      = useState<string | null>(null)
   const [webhookUrl,   setWebhookUrl]   = useState('')
   const [webhookSaved, setWebhookSaved] = useState(false)
   const [apiType,      setApiType]      = useState<'redirect'|'direct'|'status'>('redirect')
@@ -2788,6 +2815,9 @@ const ScreenDeveloper = () => {
     apiFetch<Record<string, unknown>[]>('/api-keys')
       .then(keys => setApiKeys(keys))
       .catch(() => {})
+    apiFetch<{ client_id: string; api_key: string }>(`/api-keys/reveal?env=${_env}`)
+      .then(r => { setRevealedSK(r.api_key) })
+      .catch(() => {})
     apiFetch<{ data: { url: string }[] }>('/webhooks')
       .then(r => { if (r.data?.[0]?.url) setWebhookUrl(r.data[0].url) })
       .catch(() => {})
@@ -2797,8 +2827,8 @@ const ScreenDeveloper = () => {
   const PK = (activeKey?.client_id as string) ?? '—'
   const SK = revealedSK ?? null
 
-  const handleRevealSK = async () => {
-    if (revealedSK) { setShowSecret(v => !v); return }
+  const handleRegen = async () => {
+    setShowRegenConfirm(false)
     setRegenLoading(true)
     try {
       const res = await apiFetch<{ client_id: string; api_key: string }>('/api-keys/regenerate', {
@@ -2809,7 +2839,7 @@ const ScreenDeveloper = () => {
       setApiKeys(prev => prev.map(k => k.env === _env ? { ...k, client_id: res.client_id } : k))
       setShowSecret(true)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erreur')
+      setDevError(err instanceof Error ? err.message : 'Erreur lors de la regénération')
     } finally {
       setRegenLoading(false)
     }
@@ -2874,40 +2904,91 @@ const ScreenDeveloper = () => {
 
           {/* Secret key */}
           <div>
-            <label className="text-navy text-xs font-semibold uppercase tracking-wide block mb-2">
-              api_key
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-navy text-xs font-semibold uppercase tracking-wide">api_key</label>
+              <button onClick={() => setShowRegenConfirm(true)} disabled={regenLoading}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+                {regenLoading
+                  ? <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                  : <><RefreshCw className="w-3 h-3" />Regénérer</>}
+              </button>
+            </div>
             <div className="flex items-center gap-2 bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
               <code className="flex-1 text-navy text-xs font-mono truncate">
                 {SK && showSecret ? SK : '•'.repeat(40)}
               </code>
-              <button onClick={handleRevealSK} disabled={regenLoading}
-                className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-navy-200 transition-colors text-navy-500">
-                {regenLoading
-                  ? <div className="w-3.5 h-3.5 border-2 border-navy-400 border-t-transparent rounded-full animate-spin" />
-                  : SK
-                    ? (showSecret ? <><EyeOff className="w-3.5 h-3.5" />Masquer</> : <><Eye className="w-3.5 h-3.5" />Voir</>)
-                    : <><Eye className="w-3.5 h-3.5" />Regénérer & voir</>}
-              </button>
               {SK && (
-                <button onClick={() => copy(SK, 'sk')}
-                  className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-                  style={copiedKey === 'sk'
-                    ? { background: 'rgba(16,185,129,0.12)', color: '#10B981' }
-                    : { background: 'rgba(245,158,11,0.12)', color: '#F97316' }}>
-                  {copiedKey === 'sk' ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Copier</>}
-                </button>
+                <>
+                  <button onClick={() => setShowSecret(v => !v)}
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-navy-200 transition-colors text-navy-400">
+                    {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <button onClick={() => copy(SK, 'sk')}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                    style={copiedKey === 'sk'
+                      ? { background: 'rgba(16,185,129,0.12)', color: '#10B981' }
+                      : { background: 'rgba(245,158,11,0.12)', color: '#F97316' }}>
+                    {copiedKey === 'sk' ? <><Check className="w-3 h-3" />Copié</> : <><Copy className="w-3 h-3" />Copier</>}
+                  </button>
+                </>
               )}
             </div>
             {!SK && (
               <p className="text-amber-600 text-[11px] mt-1.5">
-                ⚠ La clé secrète n'est affichée qu'une seule fois à la génération. Cliquez sur "Regénérer & voir" pour en créer une nouvelle.
+                ⚠ La clé n'est visible qu'une fois à la génération. Utilisez "Regénérer" pour en créer une nouvelle.
               </p>
             )}
-            <p className="text-red-500 text-[11px] mt-1 flex items-center gap-1">
-              ⚠ Ne partagez jamais votre clé secrète. Gardez-la côté serveur uniquement.
-            </p>
+            <p className="text-red-500 text-[11px] mt-1">⚠ Ne partagez jamais votre api_key. Côté serveur uniquement.</p>
           </div>
+
+          {/* Dialog confirmation regénération */}
+          {showRegenConfirm && (
+            <>
+              <div className="fixed inset-0 z-50" style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)' }}
+                onClick={() => setShowRegenConfirm(false)} />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+                  <div className="p-6 text-center">
+                    <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+                      <RefreshCw className="w-6 h-6 text-red-500" />
+                    </div>
+                    <h3 className="font-bold text-navy text-lg mb-2">Regénérer les clés ?</h3>
+                    <p className="text-navy-400 text-sm mb-6">L'ancienne <strong>api_key</strong> sera immédiatement invalidée. Toutes vos intégrations utilisant cette clé cesseront de fonctionner.</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => setShowRegenConfirm(false)}
+                        className="flex-1 py-3 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+                        Annuler
+                      </button>
+                      <button onClick={handleRegen}
+                        className="flex-1 py-3 rounded-xl text-white font-bold text-sm"
+                        style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)' }}>
+                        Confirmer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Dialog erreur dev */}
+          {devError && (
+            <>
+              <div className="fixed inset-0 z-50" style={{ background: 'rgba(15,23,42,0.4)' }}
+                onClick={() => setDevError(null)} />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center" style={{ animation: 'fadeUp 0.2s ease-out' }}>
+                  <p className="text-red-500 text-2xl mb-3">⚠</p>
+                  <p className="font-bold text-navy mb-2">Erreur</p>
+                  <p className="text-navy-400 text-sm mb-5">{devError}</p>
+                  <button onClick={() => setDevError(null)}
+                    className="w-full py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-navy-300 transition-colors">
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -3291,34 +3372,37 @@ const ScreenSupport = () => {
         <p className="text-navy-400 text-sm">Notre équipe répond sous 24h ouvrées.</p>
       </div>
 
-      {/* Infos de contact */}
-      <div className="bg-white rounded-2xl border border-navy-100 p-5 mb-5 flex flex-wrap gap-5"
+      {/* Contacts du service client */}
+      <div className="bg-white rounded-2xl border border-navy-100 p-5 mb-5"
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.10)' }}>
-            <span className="text-base">✉️</span>
+        <p className="text-xs font-bold text-navy-400 uppercase tracking-wider mb-4">Nos coordonnées</p>
+        <div className="flex flex-wrap gap-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.10)' }}>
+              <span className="text-base">✉️</span>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Email support</p>
+              <p className="text-sm font-semibold text-navy">support@youngpaycollect.com</p>
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Votre email</p>
-            <p className="text-sm font-semibold text-navy">{merchantInfo.email || '—'}</p>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.10)' }}>
+              <span className="text-base">📞</span>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Téléphone</p>
+              <p className="text-sm font-semibold text-navy">+224 620 000 000</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.10)' }}>
-            <span className="text-base">📞</span>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Votre téléphone</p>
-            <p className="text-sm font-semibold text-navy">{merchantInfo.phone || '—'}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.10)' }}>
-            <span className="text-base">💬</span>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Support email</p>
-            <p className="text-sm font-semibold text-navy">support@youngpaycollect.com</p>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.10)' }}>
+              <span className="text-base">⏰</span>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-navy-400 uppercase tracking-wide">Disponibilité</p>
+              <p className="text-sm font-semibold text-navy">Lun–Ven · 8h–18h</p>
+            </div>
           </div>
         </div>
       </div>
@@ -3502,8 +3586,9 @@ const ScreenAccount = () => {
   const [saved,        setSaved]        = useState(false)
   const [twoFA,        setTwoFA]        = useState(false)
   const [showPwForm,   setShowPwForm]   = useState(false)
-  const [phoneOtp,     setPhoneOtp]     = useState(false)
+  const [phoneOtp,     setPhoneOtp]     = useState(true)
   const [phoneOtpSaving, setPhoneOtpSaving] = useState(false)
+  const [accountError, setAccountError] = useState<string | null>(null)
   const [confirmSave,  setConfirmSave]  = useState(false)
   const [currentPw,    setCurrentPw]    = useState('')
   const [newPw,        setNewPw]        = useState('')
@@ -3607,7 +3692,7 @@ const ScreenAccount = () => {
       setKycDocs(prev => ({ ...prev, [type]: { status: 'submitted', rejection_reason: null } }))
       setKycApproved(prev => Math.max(prev, 0))
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Erreur lors de l\'envoi')
+      setAccountError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi du document')
     } finally {
       setUploadingDoc(null)
     }
@@ -4155,6 +4240,7 @@ const ScreenAccount = () => {
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+      {accountError && <ErrorDialog message={accountError} onClose={() => setAccountError(null)} />}
     </div>
   )
 }
@@ -4352,11 +4438,11 @@ export default function Dashboard() {
                         {env === 'production' ? '✓ Production' : 'Production'}
                       </button>
                       {!productionEnabled && env !== 'production' && (
-                        <div className="absolute bottom-full right-0 mb-2 w-64 bg-navy text-white text-xs rounded-xl p-3 shadow-xl z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        <div className="absolute top-full right-0 mt-2 w-64 bg-navy text-white text-xs rounded-xl p-3 shadow-xl z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                           style={{ fontFamily: 'Poppins, sans-serif' }}>
+                          <div className="absolute top-0 right-4 -translate-y-1/2 w-2 h-2 bg-navy rotate-45" />
                           <p className="font-semibold mb-1">⚠ Accès production requis</p>
                           <p className="text-white/70 leading-snug">Soumettez votre <strong className="text-white">pièce d'identité</strong> et votre <strong className="text-white">RCCM</strong> dans <em>Mon compte → KYC</em> pour activer le mode production.</p>
-                          <div className="absolute bottom-0 right-4 translate-y-1/2 w-2 h-2 bg-navy rotate-45" />
                         </div>
                       )}
                     </div>
