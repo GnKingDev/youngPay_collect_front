@@ -105,30 +105,61 @@ export default function PayPage() {
       <div className="min-h-screen bg-white flex flex-col" style={S}>
 
         {/* Header */}
-        <header className="flex items-center justify-between px-5 pt-6 pb-4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-3 py-2">
-            <img src={logo} alt="YoungPay" className="h-7 w-auto" />
-          </div>
-          {link && (
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={link.env === 'sandbox'
-                ? { background: '#FEF3C7', color: '#D97706' }
-                : { background: '#D1FAE5', color: '#059669' }}>
-              {link.env === 'sandbox' ? '⚡ Sandbox' : '✓ Production'}
+        <header className="relative flex items-center justify-center px-5 pt-6 pb-4">
+          <img src={logo} alt="YoungPay" className="h-7 w-auto" />
+          {link?.env === 'sandbox' && (
+            <span className="absolute right-5 text-xs font-semibold px-3 py-1.5 rounded-full"
+              style={{ background: '#FEF3C7', color: '#D97706' }}>
+              ⚡ Sandbox
             </span>
           )}
         </header>
 
         <main className="flex-1 px-5 pb-8 max-w-sm mx-auto w-full">
 
-          {/* LOADING */}
+          {/* LOADING — skeleton fidèle à la vraie page */}
           {step === 'loading' && (
-            <div className="mt-8 space-y-4 animate-pulse">
-              <div className="h-5 bg-gray-100 rounded-full w-1/2" />
-              <div className="h-16 bg-gray-100 rounded-2xl" />
-              <div className="h-5 bg-gray-100 rounded-full w-2/3" />
-              <div className="grid grid-cols-2 gap-3 mt-6">
-                {[1,2,3,4].map(i => <div key={i} className="h-24 bg-gray-100 rounded-2xl" />)}
+            <div className="mt-4 animate-pulse">
+
+              {/* Skeleton carte marchande */}
+              <div className="rounded-2xl border border-gray-100 p-4 mb-6"
+                style={{ background: '#F9FAFB' }}>
+                {/* Avatar + nom */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gray-200 flex-shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 bg-gray-200 rounded-full w-2/3" />
+                    <div className="h-2.5 bg-gray-100 rounded-full w-1/2" />
+                  </div>
+                </div>
+                {/* Titre */}
+                <div className="h-2.5 bg-gray-200 rounded-full w-1/3 mb-2" />
+                {/* Montant */}
+                <div className="h-10 bg-gray-200 rounded-xl w-3/4" />
+                {/* Séparateur */}
+                <div className="mt-3 h-px bg-gray-100" />
+              </div>
+
+              {/* Label "Moyen de paiement" */}
+              <div className="h-2.5 bg-gray-200 rounded-full w-1/3 mb-3" />
+
+              {/* Grille opérateurs */}
+              <div className="grid grid-cols-2 gap-3">
+                {[1,2,3,4,5,6].map(i => (
+                  <div key={i} className="rounded-2xl border border-gray-100 py-5 px-3 flex flex-col items-center gap-2.5"
+                    style={{ background: '#FAFAFA' }}>
+                    <div className="w-12 h-10 bg-gray-200 rounded-lg" />
+                    <div className="h-2.5 bg-gray-200 rounded-full w-2/3" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Indicateur de chargement discret en bas */}
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-orange-400 animate-spin" />
+                <span className="text-xs text-gray-400" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+                  Chargement du lien…
+                </span>
               </div>
             </div>
           )}
