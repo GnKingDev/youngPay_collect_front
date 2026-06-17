@@ -10,7 +10,8 @@ const AuthFlow  = lazy(() => import('./pages/AuthFlow'))
 const Register  = lazy(() => import('./pages/Register'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const DevPage   = lazy(() => import('./pages/DevPage'))
-const PayPage   = lazy(() => import('./pages/PayPage'))
+const PayPage    = lazy(() => import('./pages/PayPage'))
+const ResultPage = lazy(() => import('./pages/ResultPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -43,7 +44,8 @@ export default function App() {
           <Route path="/dashboard"   element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/docs"        element={<DevPage />} />
           <Route path="/developpeur" element={<ProtectedRoute><DevPage /></ProtectedRoute>} />
-          <Route path="/pay/:linkId" element={<PayPage />} />
+          <Route path="/pay/:linkId"              element={<PayPage />} />
+          <Route path="/result/:transactionId"   element={<ResultPage />} />
         </Routes>
       </Suspense>
     </AuthProvider>
