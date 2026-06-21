@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Zap, Smartphone, CheckCircle, X } from 'lucide-react'
 import { apiFetch } from './shared'
 
@@ -16,9 +16,26 @@ const ScreenDirectCollect = () => {
   const [showConfirm, setShowConfirm] = useState(false)
   const [modalStatus, setModalStatus] = useState<'pending'|'success'|'failed'|null>(null)
   const [txId,        setTxId]        = useState('')
+  const pollerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const opInfo = DC_OPS.find(o => o.id === op) ?? DC_OPS[0]
   const rawAmount = Number(amount.replace(/\s/g, ''))
+
+  const stopPolling = () => {
+    if (pollerRef.current) { clearInterval(pollerRef.current); pollerRef.current = null }
+  }
+
+  const startPolling = (txId: string) => {
+    stopPolling()
+    pollerRef.current = setInterval(async () => {
+      try {
+        const s = await apiFetch<{ status: string }>(`/transactions/${txId}`)
+        if (s.status === 'SUCCESS') { stopPolling(); setModalStatus('success') }
+        else if (s.status === 'FAILED') { stopPolling(); setModalStatus('failed') }
+        // PENDING → on continue de poller, rien d'autre
+      } catch { /* ignore — on réessaie au prochain tick */ }
+    }, 3000)
+  }
 
   const handleSend = async () => {
     setShowConfirm(false)
@@ -29,19 +46,14 @@ const ScreenDirectCollect = () => {
         body: JSON.stringify({ amount: rawAmount, phone, operator: op, description: motif }),
       })
       setTxId(res.transaction_id)
-      setTimeout(async () => {
-        try {
-          const s = await apiFetch<{ status: string }>(`/transactions/${res.transaction_id}`)
-          setModalStatus(s.status === 'SUCCESS' ? 'success' : s.status === 'FAILED' ? 'failed' : 'success')
-        } catch { setModalStatus('success') }
-      }, 4000)
+      startPolling(res.transaction_id)
     } catch {
       setModalStatus('failed')
     }
   }
 
-  const closeModal  = () => setModalStatus(null)
-  const resetAll    = () => { setModalStatus(null); setPhone(''); setAmount(''); setMotif(''); setTxId('') }
+  const closeModal = () => { stopPolling(); setModalStatus(null) }
+  const resetAll   = () => { stopPolling(); setModalStatus(null); setPhone(''); setAmount(''); setMotif(''); setTxId('') }
 
   return (
     <div className="p-6 flex flex-col items-center gap-6">

@@ -68,7 +68,6 @@ export default function PayPage() {
         const d = await r.json()
         if (d.status === 'SUCCESS') { clearInterval(pollerRef.current!); setStep('success') }
         if (d.status === 'FAILED')  { clearInterval(pollerRef.current!); setStep('failed')  }
-        if (count >= 10)            { clearInterval(pollerRef.current!) }
       } catch { /* ignore */ }
     }, 3000)
     return () => { if (pollerRef.current) clearInterval(pollerRef.current) }
@@ -314,7 +313,7 @@ export default function PayPage() {
                   if (d.status === 'FAILED') setStep('failed')
                 } catch { /* ignore */ }
               }} className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:border-orange-300 transition-colors">
-                Vérifier {pollCount > 0 && `(${pollCount}/10)`}
+                Vérifier {pollCount > 0 && `(${pollCount})`}
               </button>
             </div>
           )}
