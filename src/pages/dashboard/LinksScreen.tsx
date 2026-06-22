@@ -37,28 +37,31 @@ const ScreenLinks = () => {
   const [page,            setPage]            = useState(1)
   const [customFields,    setCustomFields]    = useState<CField[]>([])
   const [linksData,       setLinksData]       = useState<LinkItem[]>([])
+  const [totalLinks,      setTotalLinks]      = useState(0)
   const [selectedLink,    setSelectedLink]    = useState<LinkItem | null>(null)
   const [editFields,      setEditFields]      = useState<CField[]>([])
 
   const getPayUrl = (linkId: string) => `https://youngpaycollect.com/pay/${linkId}`
 
-  useEffect(() => {
-    apiFetch<{ data: Record<string, unknown>[] }>('/payment-links')
-      .then(r => {
-        if (r.data?.length) setLinksData(r.data.map(l => ({
-          id:           l.id as string,
-          title:        l.title as string,
-          amount:       Number(l.amount) || 0,
-          status:       l.status as string,
-          payments:     Number(l.payments_count) || 0,
-          created:      new Date(l.created_at as string).toLocaleDateString('fr-GN'),
-          methods:      (l.methods as string[]) || [],
-          customFields: [],
-        })))
-      })
-      .catch(() => {})
-  }, [])
   const LINKS_PAGE_SIZE = 5
+
+  useEffect(() => {
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>(
+      `/payment-links?page=${page}&limit=${LINKS_PAGE_SIZE}`
+    ).then(r => {
+      setTotalLinks(r.total ?? 0)
+      setLinksData((r.data ?? []).map(l => ({
+        id:           l.id as string,
+        title:        l.title as string,
+        amount:       Number(l.amount) || 0,
+        status:       l.status as string,
+        payments:     Number(l.payments_count) || 0,
+        created:      new Date(l.created_at as string).toLocaleDateString('fr-GN'),
+        methods:      (l.methods as string[]) || [],
+        customFields: [],
+      })))
+    }).catch(() => {})
+  }, [page])
 
   useEffect(() => { setEditFields(selectedLink ? [...selectedLink.customFields] : []) }, [selectedLink])
 
@@ -88,12 +91,8 @@ const ScreenLinks = () => {
       setGeneratedLink(link)
       setGenerated(true)
       setShowConfirm(false)
-      setLinksData(prev => [{
-        id: created.id as string, title, amount: Number(amount.replace(/\s/g, '')),
-        status: 'active', payments: 0,
-        created: new Date().toLocaleDateString('fr-GN'),
-        methods, customFields,
-      }, ...prev])
+      // Recharger la page 1 depuis le backend
+      setPage(1)
     } catch {
       setShowConfirm(false)
     }
@@ -406,12 +405,11 @@ const ScreenLinks = () => {
 
       {/* Links list */}
       {(() => {
-        const totalPages = Math.ceil(linksData.length / LINKS_PAGE_SIZE)
-        const pageLinks  = linksData.slice((page - 1) * LINKS_PAGE_SIZE, page * LINKS_PAGE_SIZE)
+        const totalPages = Math.max(1, Math.ceil(totalLinks / LINKS_PAGE_SIZE))
         return (
           <>
             <div className="space-y-3">
-              {pageLinks.map(link => (
+              {linksData.map(link => (
                 <div key={link.id}
                   className="bg-white rounded-2xl border border-navy-100 p-5 flex flex-col sm:flex-row sm:items-center gap-4"
                   style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
@@ -458,7 +456,7 @@ const ScreenLinks = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-2">
                 <span className="text-xs text-navy-400">
-                  Liens <span className="font-semibold text-navy">{(page - 1) * LINKS_PAGE_SIZE + 1}–{Math.min(page * LINKS_PAGE_SIZE, linksData.length)}</span> sur <span className="font-semibold text-navy">{linksData.length}</span>
+                  Liens <span className="font-semibold text-navy">{totalLinks === 0 ? 0 : (page - 1) * LINKS_PAGE_SIZE + 1}–{Math.min(page * LINKS_PAGE_SIZE, totalLinks)}</span> sur <span className="font-semibold text-navy">{totalLinks}</span>
                 </span>
                 <div className="flex items-center gap-1">
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}

@@ -257,12 +257,15 @@ const res = await fetch(
 const data = await res.json()
 // {
 //   transaction_id: 'TXN-XXXXXXXX',
+//   merchant_ref:   'ORDER-2026-001',
 //   status:         'SUCCESS',
 //   amount:         150000,
+//   fee:            1800,
+//   net:            148200,
+//   operator:       'orange_money',
 //   phone:          '620000000',
-//   method:         'orange_money',
-//   merchant_ref:   'ORDER-2026-001',
-//   created_at:     '2026-05-01T14:32:00Z',
+//   env:            'production',
+//   timestamp:      '2026-05-01T14:32:00Z',
 // }`,
 
     python: `import requests
@@ -279,12 +282,15 @@ res = requests.get(
 data = res.json()
 # {
 #   'transaction_id': 'TXN-XXXXXXXX',
+#   'merchant_ref':   'ORDER-2026-001',
 #   'status':         'SUCCESS',
 #   'amount':         150000,
+#   'fee':            1800,
+#   'net':            148200,
+#   'operator':       'orange_money',
 #   'phone':          '620000000',
-#   'method':         'orange_money',
-#   'merchant_ref':   'ORDER-2026-001',
-#   'created_at':     '2026-05-01T14:32:00Z',
+#   'env':            'production',
+#   'timestamp':      '2026-05-01T14:32:00Z',
 # }`,
 
     php: `$transactionId = 'TXN-XXXXXXXX';
@@ -295,6 +301,18 @@ $res = Http::withHeaders([
     "https://api.youngpaycollect.com/v1/payment/{$transactionId}"
 );
 // HTTP 200 OK
+// {
+//   'transaction_id': 'TXN-XXXXXXXX',
+//   'merchant_ref':   'ORDER-2026-001',
+//   'status':         'SUCCESS',
+//   'amount':         150000,
+//   'fee':            1800,
+//   'net':            148200,
+//   'operator':       'orange_money',
+//   'phone':          '620000000',
+//   'env':            'production',
+//   'timestamp':      '2026-05-01T14:32:00Z',
+// }
 $data = $res->json();`,
 
     dart: `final transactionId = 'TXN-XXXXXXXX';
@@ -308,6 +326,18 @@ final res = await http.get(
   },
 );
 // HTTP 200 OK
+// {
+//   'transaction_id': 'TXN-XXXXXXXX',
+//   'merchant_ref':   'ORDER-2026-001',
+//   'status':         'SUCCESS',
+//   'amount':         150000,
+//   'fee':            1800,
+//   'net':            148200,
+//   'operator':       'orange_money',
+//   'phone':          '620000000',
+//   'env':            'production',
+//   'timestamp':      '2026-05-01T14:32:00Z',
+// }
 final data = jsonDecode(res.body);`,
 
     curl: `curl -X GET https://api.youngpaycollect.com/v1/payment/TXN-XXXXXXXX \\
@@ -317,12 +347,15 @@ final data = jsonDecode(res.body);`,
 # HTTP 200 OK
 # {
 #   "transaction_id": "TXN-XXXXXXXX",
+#   "merchant_ref":   "ORDER-2026-001",
 #   "status":         "SUCCESS",
 #   "amount":         150000,
+#   "fee":            1800,
+#   "net":            148200,
+#   "operator":       "orange_money",
 #   "phone":          "620000000",
-#   "method":         "orange_money",
-#   "merchant_ref":   "ORDER-2026-001",
-#   "created_at":     "2026-05-01T14:32:00Z"
+#   "env":            "production",
+#   "timestamp":      "2026-05-01T14:32:00Z"
 # }`,
   },
 }
@@ -344,6 +377,9 @@ const ScreenDeveloper = () => {
   const [devError,      setDevError]      = useState<string | null>(null)
   const [webhookUrl,   setWebhookUrl]   = useState('')
   const [webhookSaved, setWebhookSaved] = useState(false)
+  const [webhookError, setWebhookError] = useState<string | null>(null)
+
+  const isHttps = webhookUrl === '' || webhookUrl.startsWith('https://')
   const [apiType,      setApiType]      = useState<'redirect'|'direct'|'status'>('redirect')
   const [lang,         setLang]         = useState<ApiLang>('node')
   const [apiKeys,      setApiKeys]      = useState<Record<string, unknown>[]>([])
@@ -355,8 +391,8 @@ const ScreenDeveloper = () => {
     apiFetch<{ client_id: string; api_key: string }>(`/api-keys/reveal?env=${_env}`)
       .then(r => { setRevealedSK(r.api_key) })
       .catch(() => {})
-    apiFetch<{ data: { url: string }[] }>('/webhooks')
-      .then(r => { if (r.data?.[0]?.url) setWebhookUrl(r.data[0].url) })
+    apiFetch<{ url: string }[]>('/webhooks')
+      .then(r => { if (Array.isArray(r) && r[0]?.url) setWebhookUrl(r[0].url) })
       .catch(() => {})
   }, [])
 
@@ -390,11 +426,18 @@ const ScreenDeveloper = () => {
 
   const saveWebhook = async () => {
     setWebhookSaved(false)
+    setWebhookError(null)
+    if (!webhookUrl.startsWith('https://')) {
+      setWebhookError('L\'URL doit commencer par https://')
+      return
+    }
     try {
       await apiFetch('/webhooks', { method: 'POST', body: JSON.stringify({ url: webhookUrl }) })
-    } catch { /* ignore — show success anyway for UX */ }
-    setWebhookSaved(true)
-    setTimeout(() => setWebhookSaved(false), 3000)
+      setWebhookSaved(true)
+      setTimeout(() => setWebhookSaved(false), 3000)
+    } catch (err: unknown) {
+      setWebhookError(err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement')
+    }
   }
 
   const currentSnippet = API_SNIPPETS[apiType][lang]
@@ -545,14 +588,26 @@ const ScreenDeveloper = () => {
               <input
                 type="url"
                 value={webhookUrl}
-                onChange={e => setWebhookUrl(e.target.value)}
+                onChange={e => { setWebhookUrl(e.target.value); setWebhookError(null) }}
                 placeholder="https://monsite.com/webhook"
-                className="w-full bg-navy-50 border border-navy-200 rounded-xl px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
+                className="w-full bg-navy-50 rounded-xl px-4 py-3 text-sm text-navy outline-none transition-colors"
+                style={{ border: `1px solid ${!isHttps ? '#EF4444' : '#CBD5E1'}` }}
               />
+              {!isHttps && (
+                <p className="text-red-500 text-[11px] mt-1.5 flex items-center gap-1">
+                  <span>⚠</span> L'URL doit commencer par <code className="font-mono font-bold">https://</code>
+                </p>
+              )}
+              <p className="text-slate-400 text-[11px] mt-1.5">
+                Seules les URLs <strong>HTTPS</strong> sont acceptées en production.
+              </p>
             </div>
-            <button onClick={saveWebhook}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
+            {webhookError && (
+              <p className="text-red-500 text-xs px-1 flex items-center gap-1">⚠ {webhookError}</p>
+            )}
+            <button onClick={saveWebhook} disabled={!isHttps || webhookUrl === ''}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+              style={{ background: webhookSaved ? 'linear-gradient(135deg,#10B981,#059669)' : 'linear-gradient(135deg, #F59E0B, #F97316)' }}>
               {webhookSaved ? '✓ Webhook enregistré' : 'Enregistrer'}
             </button>
           </div>
@@ -759,13 +814,16 @@ const ScreenDeveloper = () => {
           </div>
           <div className="grid gap-1.5 mb-4">
             {(apiType === 'status' ? [
-              { name: 'transaction_id', type: 'string',      desc: 'Identifiant unique de la transaction'                    },
-              { name: 'status',         type: 'string',      desc: "'SUCCESS' · 'PENDING' · 'FAILED' · 'EXPIRED'"           },
-              { name: 'amount',         type: 'number',      desc: 'Montant en GNF'                                          },
-              { name: 'phone',          type: 'string',      desc: 'Téléphone du payeur'                                     },
-              { name: 'method',         type: 'string',      desc: "Opérateur utilisé (ex: 'orange_money')"                  },
-              { name: 'merchant_ref',   type: 'string',      desc: 'Votre référence interne transmise dans la requête'       },
-              { name: 'created_at',     type: 'string',      desc: 'Date de création ISO 8601'                               },
+              { name: 'transaction_id', type: 'string',  desc: 'Identifiant unique de la transaction'              },
+              { name: 'merchant_ref',   type: 'string',  desc: 'Votre référence interne transmise dans la requête' },
+              { name: 'status',         type: 'string',  desc: "'SUCCESS' · 'PENDING' · 'FAILED' · 'EXPIRED'"     },
+              { name: 'amount',         type: 'number',  desc: 'Montant en GNF'                                    },
+              { name: 'fee',            type: 'number',  desc: 'Frais prélevés en GNF'                             },
+              { name: 'net',            type: 'number',  desc: 'Montant net crédité en GNF'                        },
+              { name: 'operator',       type: 'string',  desc: "Opérateur utilisé (ex: 'orange_money')"            },
+              { name: 'phone',          type: 'string',  desc: 'Téléphone du payeur'                               },
+              { name: 'env',            type: 'string',  desc: "'sandbox' ou 'production'"                         },
+              { name: 'timestamp',      type: 'string',  desc: 'Date de création ISO 8601'                         },
             ] : [
               { name: 'status',         type: 'string',      desc: "'PENDING' · 'SUCCESS' · 'FAILED'"                       },
               { name: 'transaction_id', type: 'string',      desc: 'Identifiant unique de la transaction (ex: TXN-XXXXXXXX)' },

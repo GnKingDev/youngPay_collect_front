@@ -15,12 +15,17 @@ const ScreenReversements = () => {
   const [showBankModal,    setShowBankModal]    = useState(false)
   const [newBank,          setNewBank]          = useState({ bank_name: '', rib: '', label: '' })
   const [savingBank,       setSavingBank]       = useState(false)
+  const [revPage,          setRevPage]          = useState(1)
+  const [revTotal,         setRevTotal]         = useState(0)
+  const REV_PER = 5
 
   useEffect(() => {
     if (_env !== 'production') return
-    apiFetch<{ data: Record<string, unknown>[] }>('/reversements')
-      .then(r => {
-        if (r.data?.length) setReversementsData(r.data.map(p => ({
+    apiFetch<{ data: Record<string, unknown>[]; total: number }>(
+      `/reversements?page=${revPage}&limit=${REV_PER}`
+    ).then(r => {
+        setRevTotal(r.total ?? 0)
+        setReversementsData((r.data ?? []).map(p => ({
           date:   new Date(p.created_at as string).toLocaleDateString('fr-GN'),
           amount: Number(p.amount),
           dest:   p.destination as string,
@@ -32,7 +37,7 @@ const ScreenReversements = () => {
       .then(r => setSolde(r.balance)).catch(() => {})
     apiFetch<BankAcc[]>('/bank-accounts')
       .then(d => { if (Array.isArray(d)) setBankAccounts(d) }).catch(() => {})
-  }, [])
+  }, [revPage])
 
   const handleSubmit = async () => {
     if (!revAmount || !selectedBankId) return
@@ -48,6 +53,7 @@ const ScreenReversements = () => {
         }),
       })
       setDone(true)
+      setRevPage(1)
     } catch (err: unknown) {
       setRevError(err instanceof Error ? err.message : 'Erreur lors de la demande')
     } finally {
@@ -292,6 +298,36 @@ const ScreenReversements = () => {
               </tbody>
             </table>
           </div>
+          {/* Pagination */}
+          {revTotal > REV_PER && (() => {
+            const totalPages = Math.ceil(revTotal / REV_PER)
+            return (
+              <div className="px-6 py-3 border-t border-navy-100 flex items-center justify-between">
+                <span className="text-xs text-navy-400">
+                  {revTotal === 0 ? 0 : (revPage - 1) * REV_PER + 1}–{Math.min(revPage * REV_PER, revTotal)} sur {revTotal}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setRevPage(p => Math.max(1, p - 1))} disabled={revPage === 1}
+                    className="w-7 h-7 rounded-lg border border-navy-200 flex items-center justify-center text-navy disabled:opacity-40 hover:border-amber-400 transition-colors text-xs font-bold">
+                    ‹
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => Math.abs(p - revPage) < 3).map(p => (
+                    <button key={p} onClick={() => setRevPage(p)}
+                      className="w-7 h-7 rounded-lg text-xs font-bold transition-colors"
+                      style={p === revPage
+                        ? { background: 'linear-gradient(135deg,#F59E0B,#F97316)', color: '#fff' }
+                        : { border: '1px solid #E2E8F0', color: '#64748B' }}>
+                      {p}
+                    </button>
+                  ))}
+                  <button onClick={() => setRevPage(p => Math.min(totalPages, p + 1))} disabled={revPage === totalPages}
+                    className="w-7 h-7 rounded-lg border border-navy-200 flex items-center justify-center text-navy disabled:opacity-40 hover:border-amber-400 transition-colors text-xs font-bold">
+                    ›
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
       {revError && <ErrorDialog message={revError} onClose={() => setRevError(null)} />}

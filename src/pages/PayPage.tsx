@@ -29,6 +29,15 @@ const fmt = (n: number) => {
   return s.replace(/\s/g, ' ') + ' GNF'
 }
 
+// Réduit la taille de police si le montant formaté est trop long
+function amountFs(n: number, base: number): number {
+  const len = fmt(n).length
+  if (len <= 10) return base
+  if (len <= 12) return Math.round(base * 0.82)
+  if (len <= 14) return Math.round(base * 0.65)
+  return Math.round(base * 0.52)
+}
+
 export default function PayPage() {
   const { linkId } = useParams<{ linkId: string }>()
   const [step, setStep]           = useState<Step>('loading')
@@ -257,7 +266,7 @@ export default function PayPage() {
                   </div>
                 </div>
                 <p className="text-gray-400 text-xs uppercase tracking-widest font-medium mb-1">{link.title}</p>
-                <p className="font-bold leading-none" style={{ fontSize: 40, color: '#F97316' }}>{fmt(link.amount)}</p>
+                <p className="font-bold leading-none" style={{ fontSize: amountFs(link.amount, 40), color: '#F97316' }}>{fmt(link.amount)}</p>
                 <div className="mt-3 h-px" style={{ background: 'linear-gradient(90deg,#F59E0B40,#F9731640,transparent)' }} />
               </div>
 
@@ -307,7 +316,7 @@ export default function PayPage() {
               {/* Amount recap */}
               <div className="text-center mb-8">
                 <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">{link.title}</p>
-                <p className="font-bold" style={{ fontSize: 44, color: '#F97316', lineHeight: 1 }}>{fmt(link.amount)}</p>
+                <p className="font-bold" style={{ fontSize: amountFs(link.amount, 44), color: '#F97316', lineHeight: 1 }}>{fmt(link.amount)}</p>
               </div>
 
               {/* Phone field */}
