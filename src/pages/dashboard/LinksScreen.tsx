@@ -95,7 +95,7 @@ const ScreenLinks = () => {
   }
 
   const handleCopy = (id: string, link: string) => {
-    navigator.clipboard.writeText('https://' + link).catch(() => {})
+    navigator.clipboard.writeText(link).catch(() => {})
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }
