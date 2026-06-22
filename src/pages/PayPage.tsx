@@ -13,7 +13,7 @@ interface LinkData {
   env: 'sandbox' | 'production'
   merchant: { name: string; city: string; sector: string }
 }
-type Step = 'loading' | 'error' | 'expired' | 'select' | 'phone' | 'pending' | 'success' | 'failed'
+type Step = 'loading' | 'error' | 'expired' | 'paid' | 'select' | 'phone' | 'pending' | 'success' | 'failed'
 
 const OPERATORS: Record<string, { label: string; logo: string }> = {
   orange_money: { label: 'Orange Money',   logo: orangeMoneyLogo },
@@ -33,6 +33,7 @@ export default function PayPage() {
   const { linkId } = useParams<{ linkId: string }>()
   const [step, setStep]           = useState<Step>('loading')
   const [link, setLink]           = useState<LinkData | null>(null)
+  const [paidInfo, setPaidInfo]   = useState<{ title: string; amount: number; merchant: string | null } | null>(null)
   const [operator, setOperator]   = useState('')
   const [phone, setPhone]         = useState('')
   const [txId, setTxId]           = useState('')
@@ -51,8 +52,15 @@ export default function PayPage() {
         setStep('select')
         setTimeout(() => setAnimateIn(true), 30)
       })
-      .catch((err: { error?: string }) => {
-        setStep(err?.error?.includes('expiré') ? 'expired' : 'error')
+      .catch((err: { error?: string; title?: string; amount?: number; merchant?: string | null }) => {
+        if (err?.error === 'already_paid') {
+          setPaidInfo({ title: err.title ?? '', amount: err.amount ?? 0, merchant: err.merchant ?? null })
+          setStep('paid')
+        } else if (err?.error === 'expired') {
+          setStep('expired')
+        } else {
+          setStep('error')
+        }
       })
   }, [linkId])
 
@@ -178,6 +186,56 @@ export default function PayPage() {
               <div className="text-5xl mb-4">⏰</div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Lien expiré</h2>
               <p className="text-gray-500 text-sm">Ce lien a expiré. Contactez le marchand.</p>
+            </div>
+          )}
+
+          {/* ALREADY PAID — lien single_use déjà utilisé */}
+          {step === 'paid' && paidInfo && (
+            <div className="mt-12 text-center" style={{ animation: 'scalePop 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+              {/* Icône cadenas fermé */}
+              <div className="relative w-24 h-24 mx-auto mb-6">
+                <div className="absolute inset-0 rounded-full opacity-15 animate-ping"
+                  style={{ background: '#6366F1', animationDuration: '2s' }} />
+                <div className="relative w-24 h-24 rounded-full flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg,#6366F1,#4F46E5)', boxShadow: '0 8px 32px rgba(99,102,241,0.35)' }}>
+                  <svg className="w-11 h-11 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                  </svg>
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Déjà payé</h2>
+              <p className="text-gray-500 text-sm mb-6">Ce lien de paiement a déjà été utilisé.<br/>Il ne peut être payé qu'une seule fois.</p>
+
+              {/* Récap du paiement */}
+              <div className="bg-indigo-50 rounded-2xl p-4 text-left space-y-3 mb-6 border border-indigo-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-2.5 h-2.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  </div>
+                  <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Paiement effectué</p>
+                </div>
+                {paidInfo.title && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Objet</span>
+                    <span className="font-semibold text-gray-800">{paidInfo.title}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Montant</span>
+                  <span className="font-bold" style={{ color: '#4F46E5' }}>{fmt(paidInfo.amount)}</span>
+                </div>
+                {paidInfo.merchant && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Marchand</span>
+                    <span className="font-semibold text-gray-800">{paidInfo.merchant}</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-gray-400 text-xs">Si vous pensez qu'il s'agit d'une erreur,<br/>contactez directement le marchand.</p>
             </div>
           )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link2, X, Plus, ChevronDown, Check, Copy, Share2, Ban, Eye, Edit3 } from 'lucide-react'
+import { Link2, X, Plus, ChevronDown, Check, Copy, Share2, Ban, Eye, Edit3, Send } from 'lucide-react'
 import {
   apiFetch, fmt, _env, useMethods, MethodBadge, StatusBadge,
   FIELD_TYPE_OPTS, MAX_CUSTOM_FIELDS,
@@ -16,6 +16,11 @@ const ScreenLinks = () => {
     }
   }, [allMethods])
 
+  const [shareStep,    setShareStep]    = useState<null | 'sms' | 'email'>(null)
+  const [shareInput,   setShareInput]   = useState('')
+  const [shareSending, setShareSending] = useState(false)
+  const [shareDone,    setShareDone]    = useState(false)
+  const [shareLinkId,  setShareLinkId]  = useState<string>('')
   const [showForm,      setShowForm]      = useState(false)
   const [title,         setTitle]         = useState('')
   const [amount,        setAmount]        = useState('')
@@ -45,7 +50,7 @@ const ScreenLinks = () => {
           title:        l.title as string,
           amount:       Number(l.amount) || 0,
           status:       l.status as string,
-          payments:     0,
+          payments:     Number(l.payments_count) || 0,
           created:      new Date(l.created_at as string).toLocaleDateString('fr-GN'),
           methods:      (l.methods as string[]) || [],
           customFields: [],
@@ -119,7 +124,7 @@ const ScreenLinks = () => {
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold text-sm"
           style={{ background: 'linear-gradient(135deg, #F59E0B, #F97316)', boxShadow: '0 4px 16px rgba(249,115,22,0.30)' }}>
           <Plus className="w-4 h-4" />
-          Créer une facture
+          Créer un lien de paiement
         </button>
       </div>
 
@@ -200,6 +205,7 @@ const ScreenLinks = () => {
                           <select value={expiry} onChange={e => setExpiry(e.target.value)}
                             className="rounded-xl border-2 border-navy-200 px-4 py-2.5 text-sm text-navy outline-none focus:border-amber-400 transition-colors bg-white"
                             style={{ fontFamily: 'Poppins, sans-serif' }}>
+                            <option value="1x">Une seule fois</option>
                             <option value="24h">24 heures</option>
                             <option value="48h">48 heures</option>
                             <option value="7j">7 jours</option>
@@ -422,9 +428,6 @@ const ScreenLinks = () => {
                     <p className="text-navy-400 text-xs mt-0.5">
                       {link.payments} paiement{link.payments > 1 ? 's' : ''} reçu{link.payments > 1 ? 's' : ''} · Créé le {link.created}
                     </p>
-                    <div className="flex gap-1.5 mt-2">
-                      {link.methods.map(m => <MethodBadge key={m} id={m} />)}
-                    </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={() => setSelectedLink(link)}
@@ -437,7 +440,7 @@ const ScreenLinks = () => {
                       {copiedId === link.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedId === link.id ? 'Copié' : 'Copier'}
                     </button>
-                    <button onClick={() => { setShareLink(getPayUrl(link.id)); setShowShareModal(true) }}
+                    <button onClick={() => { setShareLink(getPayUrl(link.id)); setShareLinkId(link.id); setShareStep(null); setShareDone(false); setShareInput(''); setShowShareModal(true) }}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-navy-200 text-xs font-semibold text-navy hover:border-amber-400 transition-colors">
                       <Share2 className="w-3.5 h-3.5" /> Partager
                     </button>
@@ -675,7 +678,7 @@ const ScreenLinks = () => {
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-amber-400 transition-colors">
                   {copiedId === selectedLink.id ? <><Check className="w-4 h-4 text-green-500" />Lien copié !</> : <><Copy className="w-4 h-4" />Copier le lien</>}
                 </button>
-                <button onClick={() => { setShareLink(getPayUrl(selectedLink.id)); setShowShareModal(true) }}
+                <button onClick={() => { setShareLink(getPayUrl(selectedLink.id)); setShareLinkId(selectedLink.id); setShareStep(null); setShareDone(false); setShareInput(''); setShowShareModal(true) }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy hover:border-amber-400 transition-colors">
                   <Share2 className="w-4 h-4" /> Partager
                 </button>
@@ -709,7 +712,7 @@ const ScreenLinks = () => {
                     { label: 'Titre',   value: title },
                     { label: 'Montant', value: amount + ' GNF' },
                     { label: 'Méthodes', value: methods.length ? methods.map(m => allMethods.find(x => x.code === m)?.label ?? m).join(', ') : 'Toutes' },
-                    { label: 'Expiration', value: expiry === 'inf' ? 'Sans limite' : expiry },
+                    { label: 'Expiration', value: expiry === 'inf' ? 'Sans limite' : expiry === '1x' ? 'Une seule fois' : expiry },
                     { label: 'Env', value: _env === 'production' ? '🟢 Production' : '🟡 Sandbox' },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex justify-between text-sm">
@@ -739,46 +742,98 @@ const ScreenLinks = () => {
       {showShareModal && (
         <>
           <div className="fixed inset-0 z-[60]" style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setShowShareModal(false)} />
+            onClick={() => { setShowShareModal(false); setShareStep(null); setShareInput(''); setShareDone(false) }} />
           <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" style={{ animation: 'fadeUp 0.2s ease-out' }}>
               <div className="flex items-center justify-between px-5 py-4 border-b border-navy-100">
-                <h3 className="font-bold text-navy">Partager le lien</h3>
-                <button onClick={() => setShowShareModal(false)}
+                <div className="flex items-center gap-2">
+                  {shareStep && (
+                    <button onClick={() => { setShareStep(null); setShareInput(''); setShareDone(false) }}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-navy-400 hover:bg-navy-100 transition-colors text-lg font-bold">
+                      ‹
+                    </button>
+                  )}
+                  <h3 className="font-bold text-navy">
+                    {shareStep === 'sms' ? 'Envoyer par SMS' : shareStep === 'email' ? 'Envoyer par Email' : 'Partager le lien'}
+                  </h3>
+                </div>
+                <button onClick={() => { setShowShareModal(false); setShareStep(null); setShareInput(''); setShareDone(false) }}
                   className="w-8 h-8 rounded-xl flex items-center justify-center text-navy-400 hover:bg-navy-100 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-5">
                 {/* URL du lien */}
-                <div className="bg-navy-50 rounded-xl p-3 flex items-center gap-3">
-                  <span className="text-xs text-navy-500 font-mono break-all flex-1">{shareLink}</span>
+                <div className="bg-navy-50 rounded-xl p-3 mb-4">
+                  <span className="text-xs text-navy-500 font-mono break-all">{shareLink}</span>
                 </div>
-                {/* Options */}
-                <div className="space-y-2">
-                  {/* Copier */}
-                  <button onClick={() => { navigator.clipboard.writeText(shareLink).catch(()=>{}); setShowShareModal(false) }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
-                    <Copy className="w-4 h-4 text-navy-400" /> Copier le lien
-                  </button>
-                  {/* WhatsApp */}
-                  <a href={`https://wa.me/?text=${encodeURIComponent('Payez via YoungPay Collect :\n' + shareLink)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-sm font-semibold"
-                    style={{ borderColor: '#25D36620', background: '#25D36608', color: '#128C7E' }}>
-                    <span className="text-xl">📱</span> Partager via WhatsApp
-                  </a>
-                  {/* SMS */}
-                  <a href={`sms:?body=${encodeURIComponent('Payez via YoungPay Collect : ' + shareLink)}`}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
-                    <span className="text-xl">💬</span> Envoyer par SMS
-                  </a>
-                  {/* Email */}
-                  <a href={`mailto:?subject=Lien de paiement YoungPay&body=${encodeURIComponent('Voici votre lien de paiement :\n' + shareLink)}`}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
-                    <span className="text-xl">✉️</span> Envoyer par Email
-                  </a>
-                </div>
+
+                {!shareStep ? (
+                  <div className="space-y-2">
+                    <button onClick={() => { navigator.clipboard.writeText(shareLink).catch(()=>{}); setShowShareModal(false) }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
+                      <Copy className="w-4 h-4 text-navy-400" /> Copier le lien
+                    </button>
+                    <a href={`https://wa.me/?text=${encodeURIComponent('Payez via YoungPay Collect :\n' + shareLink)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-sm font-semibold"
+                      style={{ borderColor: '#25D36620', background: '#25D36608', color: '#128C7E' }}>
+                      <span className="text-xl leading-none">📱</span> Partager via WhatsApp
+                    </a>
+                    <button onClick={() => { setShareStep('sms'); setShareDone(false); setShareInput('') }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
+                      <span className="text-xl leading-none">💬</span> Envoyer par SMS
+                    </button>
+                    <button onClick={() => { setShareStep('email'); setShareDone(false); setShareInput('') }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-navy-200 hover:border-amber-400 transition-colors text-sm font-semibold text-navy">
+                      <span className="text-xl leading-none">✉️</span> Envoyer par Email
+                    </button>
+                  </div>
+                ) : shareDone ? (
+                  <div className="text-center py-4">
+                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                      <Check className="w-6 h-6 text-green-500" />
+                    </div>
+                    <p className="font-bold text-navy text-base mb-1">Envoyé !</p>
+                    <p className="text-navy-400 text-sm">Le lien a été envoyé avec succès.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <input
+                      type={shareStep === 'email' ? 'email' : 'tel'}
+                      value={shareInput}
+                      onChange={e => setShareInput(e.target.value)}
+                      placeholder={shareStep === 'email' ? 'Adresse email du destinataire' : 'Numéro de téléphone (+224...)'}
+                      className="w-full rounded-xl border-2 border-navy-200 px-4 py-3 text-sm text-navy outline-none focus:border-amber-400 transition-colors"
+                      style={{ fontFamily: 'Poppins, sans-serif' }}
+                      autoFocus
+                    />
+                    <button
+                      disabled={!shareInput || shareSending}
+                      onClick={async () => {
+                        if (!shareInput || !shareLinkId) return
+                        setShareSending(true)
+                        try {
+                          await apiFetch(`/payment-links/${shareLinkId}/share`, {
+                            method: 'POST',
+                            body: JSON.stringify({ via: shareStep, recipient: shareInput }),
+                          })
+                          setShareDone(true)
+                        } catch {
+                          // on reste sur le formulaire
+                        } finally {
+                          setShareSending(false)
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      style={{ background: 'linear-gradient(135deg,#F59E0B,#F97316)', boxShadow: '0 4px 16px rgba(249,115,22,0.30)' }}>
+                      {shareSending
+                        ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        : <Send className="w-4 h-4" />}
+                      {shareSending ? 'Envoi...' : 'Envoyer'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
